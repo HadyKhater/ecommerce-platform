@@ -66,7 +66,7 @@ export class AuthService {
 
     this.tokenService.clearTokens();
     this.currentUser.set(null);
-    void this.router.navigate(['/auth/login']);
+    void this.router.navigate(['/login']);
   }
 
   refreshTokens(): Observable<void> {

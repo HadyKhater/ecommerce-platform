@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { ApiError } from '../../../shared/models/api-error.model';
@@ -27,6 +27,7 @@ export class LoginComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -83,7 +84,7 @@ export class LoginComponent {
       )
       .subscribe({
         next: () => {
-          // Navigation is handled by AuthService.login()
+          this.router.navigate(['/']);
         },
         error: (error: unknown) => {
           this.errorMessage.set(this.describeError(error));

@@ -124,4 +124,12 @@ Dependencies: TASK-06, TASK-08
 
 ---
 
+ID: TASK-16  
+Title: Home Page Separation  
+Status: ✅ Done  
+Files affected: `src/app/features/home/home.component.ts`, `src/app/features/home/home.component.html`, `src/app/features/home/home.component.css`, `src/app/features/products/product-list/product-list.component.html`, `src/app/shared/components/navbar/navbar.component.html`, `src/app/app.routes.ts`  
+Dependencies: TASK-09  
+
+---
+
 **Legend:** ✅ Done · ⏳ Pending (adjust to 🔄 In progress as needed).

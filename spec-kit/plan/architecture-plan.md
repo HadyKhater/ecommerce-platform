@@ -47,7 +47,7 @@ Gateway base URL is configured per environment (e.g. `http://localhost:8080`). P
 | Angular service | Gateway path prefix (example) | Front-end route(s) | Notes |
 |-----------------|-------------------------------|--------------------|-------|
 | `AuthService` | `/api/auth/**` | `/login`, `/register` | Login, register, refresh, logout |
-| `ProductService` | `/api/products/**` | `/products`, `/products/:id`, `/admin/products`, `/admin/products/new`, `/admin/products/:id/edit` | Catalog, product by id, search, admin CRUD |
+| `ProductService` | `/api/products/**` | `/` (home), `/products`, `/products/:id`, `/admin/products`, `/admin/products/new`, `/admin/products/:id/edit` | Catalog, product by id, search, admin CRUD |
 | `CategoryService` | `/api/categories` | Used in product-list filters & product-form dropdown | Fetches categories (id + name) |
 | `CartService` | `/api/cart/**` | — | Cart CRUD, line items |
 | `OrderService` | `/api/orders/**` | — | Checkout result, order history, order detail |
@@ -71,7 +71,8 @@ Gateway base URL is configured per environment (e.g. `http://localhost:8080`). P
 
 | Component | Path | Notes |
 |-----------|------|-------|
-| `ProductListComponent` | `features/products/product-list/` | Hero section, filter sidebar, glassmorphism product cards, pagination |
+| `HomeComponent` | `features/home/` | Hero section, featured sale banner, category showcase, latest arrivals, trust badges |
+| `ProductListComponent` | `features/products/product-list/` | Search/filter bar, glassmorphism product cards, grouped by category |
 | `ProductDetailComponent` | `features/products/product-detail/` | Single product view |
 | `ProductManagementComponent` | `features/admin/product-management/` | Stats cards, search, data table with icons, pagination |
 | `ProductFormComponent` | `features/admin/product-management/` | 2-col layout, category dropdown (fetched), image preview, toggle switch |

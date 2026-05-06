@@ -4,7 +4,7 @@
 >
   <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
     <!-- Logo -->
-    <a routerLink="/products" class="flex items-center gap-2.5" (click)="closeMobileMenu()">
+    <a routerLink="/" class="flex items-center gap-2.5" (click)="closeMobileMenu()">
       <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-500/25">
         <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -16,43 +16,32 @@
     <!-- Desktop Navigation -->
     <div class="hidden items-center gap-1 md:flex">
       <a
-        routerLink="/products"
-        routerLinkActive="text-indigo-400"
+        routerLink="/"
+        routerLinkActive="active-nav-link"
         [routerLinkActiveOptions]="{ exact: true }"
-        class="relative rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-slate-100"
-        [class.after:absolute]="true"
-        [class.after:bottom-1]="true"
-        [class.after:left-3]="true"
-        [class.after:right-3]="true"
-        [class.after:h-0.5]="true"
-        [class.after:rounded-full]="true"
-        [class.after:bg-indigo-500]="true"
-        [class.after:opacity-0]="true"
-        [class.router-link-active:after:opacity-100]="true"
+        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
       >
         Home
       </a>
       <a
         routerLink="/products"
-        routerLinkActive="text-indigo-400"
-        [routerLinkActiveOptions]="{ exact: false }"
-        class="relative rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-slate-100"
-        [class.router-link-active:after:opacity-100]="true"
+        routerLinkActive="active-nav-link"
+        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
       >
         Products
       </a>
       <a
         routerLink="/orders"
-        routerLinkActive="text-indigo-400"
-        class="relative rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-slate-100"
+        routerLinkActive="active-nav-link"
+        class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
       >
         Orders
       </a>
       @if (authService.isAdmin()) {
         <a
           routerLink="/admin/products"
-          routerLinkActive="text-indigo-400"
-          class="relative rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:text-slate-100"
+          routerLinkActive="active-nav-link"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
         >
           Admin
         </a>
@@ -172,37 +161,36 @@
     <div class="animate-fade-in border-t border-slate-800 bg-slate-900 md:hidden">
       <div class="space-y-1 px-4 pb-4 pt-2">
         <a
-          routerLink="/products"
-          routerLinkActive="bg-slate-800 text-indigo-400"
+          routerLink="/"
+          routerLinkActive="active-nav-link"
           [routerLinkActiveOptions]="{ exact: true }"
           (click)="closeMobileMenu()"
-          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100"
         >
           Home
         </a>
         <a
           routerLink="/products"
-          routerLinkActive="bg-slate-800 text-indigo-400"
-          [routerLinkActiveOptions]="{ exact: false }"
+          routerLinkActive="active-nav-link"
           (click)="closeMobileMenu()"
-          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100"
         >
           Products
         </a>
         <a
           routerLink="/orders"
-          routerLinkActive="bg-slate-800 text-indigo-400"
+          routerLinkActive="active-nav-link"
           (click)="closeMobileMenu()"
-          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+          class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100"
         >
           Orders
         </a>
         @if (authService.isAdmin()) {
           <a
             routerLink="/admin/products"
-            routerLinkActive="bg-slate-800 text-indigo-400"
+            routerLinkActive="active-nav-link"
             (click)="closeMobileMenu()"
-            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           >
             Admin Panel
           </a>

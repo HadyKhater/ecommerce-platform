@@ -3,10 +3,12 @@ import {
   Component,
   computed,
   inject,
+  OnInit,
+  PLATFORM_ID,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { DecimalPipe, NgClass, NgOptimizedImage } from '@angular/common';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DecimalPipe, isPlatformBrowser, NgClass, NgOptimizedImage } from '@angular/common';
 import { catchError, debounceTime, map, of, startWith, switchMap, combineLatest } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
@@ -31,9 +33,11 @@ export interface ProductListVm {
   styleUrls: ['./product-list.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductListComponent {
+export class ProductListComponent implements OnInit {
   private readonly productService = inject(ProductService);
   private readonly categoryService = inject(CategoryService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly platformId = inject(PLATFORM_ID);
 
   /** Page settings - load all products for client-side grouping */
   readonly currentPage = signal(0);
@@ -72,6 +76,9 @@ export class ProductListComponent {
   private currentProducts: Product[] = [];
   private currentTotalCount = 0;
   private currentPageNum = 0;
+
+  /** Target category for scroll from query params */
+  private targetCategory: string | null = null;
 
   /** Combined trigger stream for all filter changes */
   private readonly filterTrigger$ = combineLatest([
@@ -131,6 +138,8 @@ export class ProductListComponent {
           if (isFilterChangeOnly) {
             setTimeout(() => this.transitioning.set(false), 50);
           }
+          // Scroll to target category after products render
+          setTimeout(() => this.scrollToTargetCategory(), 100);
           return {
             products: res.content,
             totalCount: res.totalElements,
@@ -303,6 +312,51 @@ export class ProductListComponent {
     const val = (event.target as HTMLInputElement).value;
     this.maxPrice.set(val ? +val : undefined);
     this.currentPage.set(0);
+  }
+
+  ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      this.targetCategory = params['category'] || null;
+    });
+  }
+
+  scrollToTargetCategory(): void {
+    if (this.targetCategory && isPlatformBrowser(this.platformId)) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+
+      setTimeout(() => {
+        const element = document.getElementById(
+          'category-' + this.targetCategory
+        );
+        if (element) {
+          const navbarHeight = 80;
+          const elementTop = element.getBoundingClientRect().top
+                             + window.scrollY;
+          const targetPosition = elementTop - navbarHeight - 16;
+
+          // Smooth manual scroll (slow and simple)
+          const startPosition = 0;
+          const distance = targetPosition - startPosition;
+          const duration = 1200; // 1.2 seconds — slow and clean
+          let startTime: number | null = null;
+
+          function easeInOutQuad(t: number): number {
+            return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+          }
+
+          function step(currentTime: number): void {
+            if (!startTime) startTime = currentTime;
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            window.scrollTo(0, startPosition + distance * easeInOutQuad(progress));
+            if (elapsed < duration) requestAnimationFrame(step);
+          }
+
+          requestAnimationFrame(step);
+        }
+        this.targetCategory = null;
+      }, 300);
+    }
   }
 }
 
