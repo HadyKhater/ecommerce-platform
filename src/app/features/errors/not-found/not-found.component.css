@@ -1,0 +1,5 @@
+/* Placeholder styling — visuals rely on Tailwind utilities. */
+
+:host {
+  display: block;
+}

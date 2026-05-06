@@ -1,0 +1,11 @@
+<main class="min-h-screen bg-dark text-slate-100 antialiased">
+  @if (!isAdminRoute) {
+    <app-navbar />
+  }
+  <div [ngClass]="isAdminRoute ? '' : 'pt-16'">
+    <router-outlet />
+  </div>
+  @if (!isAdminRoute) {
+    <app-footer />
+  }
+</main>

@@ -1,0 +1,5 @@
+/* Lightweight shell styling — typography handled with Tailwind. */
+
+:host {
+  display: block;
+}
