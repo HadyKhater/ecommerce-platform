@@ -69,10 +69,12 @@ export class AdminLayoutComponent {
 
   private updatePageTitle(): void {
     const url = this.router.url;
-    if (url.includes('/admin/products/new') || url.includes('/edit')) {
+    if (url.includes('/admin/products/new') || (url.includes('/admin/products/') && url.includes('/edit'))) {
       this.pageTitle.set('Product Form');
     } else if (url.includes('/admin/products')) {
       this.pageTitle.set('Products');
+    } else if (url.includes('/admin/categories/new') || (url.includes('/admin/categories/') && url.includes('/edit'))) {
+      this.pageTitle.set('Category Form');
     } else if (url.includes('/admin/categories')) {
       this.pageTitle.set('Categories');
     } else if (url.includes('/admin/orders')) {

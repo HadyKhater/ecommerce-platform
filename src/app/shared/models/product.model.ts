@@ -7,6 +7,11 @@ export interface Category {
   active: boolean;
 }
 
+export interface CategoryRequest {
+  name: string;
+  description: string;
+}
+
 export interface Product {
   id: string;
   sku: string | null;

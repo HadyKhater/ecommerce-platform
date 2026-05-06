@@ -64,8 +64,22 @@ export const routes: Routes = [
       {
         path: 'categories',
         loadComponent: () =>
-          import('./features/admin/placeholder/placeholder.component').then(
-            (m) => m.PlaceholderComponent,
+          import('./features/admin/category-management/category-management.component').then(
+            (m) => m.CategoryManagementComponent,
+          ),
+      },
+      {
+        path: 'categories/new',
+        loadComponent: () =>
+          import('./features/admin/category-management/category-form.component').then(
+            (m) => m.CategoryFormComponent,
+          ),
+      },
+      {
+        path: 'categories/:id/edit',
+        loadComponent: () =>
+          import('./features/admin/category-management/category-form.component').then(
+            (m) => m.CategoryFormComponent,
           ),
       },
       {

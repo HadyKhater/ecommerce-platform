@@ -1,0 +1,5 @@
+/* Category form shell — visual layer handled with Tailwind utilities. */
+
+:host {
+  display: block;
+}
