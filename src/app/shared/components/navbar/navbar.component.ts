@@ -5,11 +5,13 @@ import {
   inject,
   signal,
   computed,
+  OnInit,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { NgClass } from '@angular/common';
 
 import { AuthService } from '../../../shared/services/auth.service';
+import { CartService } from '../../../shared/services/cart.service';
 
 @Component({
   selector: 'app-navbar',
@@ -19,16 +21,17 @@ import { AuthService } from '../../../shared/services/auth.service';
   styleUrl: './navbar.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class NavbarComponent {
+export class NavbarComponent implements OnInit {
   readonly authService = inject(AuthService);
+  private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
 
   readonly mobileMenuOpen = signal(false);
   readonly userMenuOpen = signal(false);
   readonly scrolled = signal(false);
 
-  /** Cart item count - placeholder for now */
-  readonly cartItemCount = signal(0);
+  /** Cart item count from CartService signal */
+  readonly cartItemCount = this.cartService.cartCount;
 
   /** User initials from full name */
   readonly userInitials = computed(() => {
@@ -41,6 +44,13 @@ export class NavbarComponent {
       .toUpperCase()
       .slice(0, 2);
   });
+
+  ngOnInit(): void {
+    // Load cart count if user is logged in
+    if (this.authService.isLoggedIn()) {
+      this.cartService.loadCart();
+    }
+  }
 
   @HostListener('window:scroll')
   onWindowScroll(): void {

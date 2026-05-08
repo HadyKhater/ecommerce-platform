@@ -13,7 +13,9 @@ import { catchError, debounceTime, map, of, startWith, switchMap, tap, distinctU
 
 import { ProductService } from '../../../shared/services/product.service';
 import { CategoryService } from '../../../shared/services/category.service';
+import { InventoryService, InventoryResponseWithStatus } from '../../../shared/services/inventory.service';
 import { Product, ProductPage, Category, ProductRequest } from '../../../shared/models/product.model';
+import { InventoryResponse } from '../../../shared/models/inventory.model';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 
 export interface ProductManagementVm {
@@ -42,6 +44,7 @@ export interface ProductManagementVm {
 export class ProductManagementComponent {
   private readonly productService = inject(ProductService);
   private readonly categoryService = inject(CategoryService);
+  private readonly inventoryService = inject(InventoryService);
 
   // Pagination signals
   readonly currentPage = signal(0);
@@ -68,6 +71,12 @@ export class ProductManagementComponent {
   /** FIX 1: Track products array for local state updates */
   readonly localProducts = signal<Product[]>([]);
 
+  /** Inventory map for live stock data */
+  readonly inventoryMap = signal<Map<string, InventoryResponseWithStatus | null>>(new Map());
+
+  /** Track products being initialized for loading state */
+  readonly initializingIds = signal<Set<string>>(new Set());
+
   /** Manual refresh trigger for explicit reloads */
   readonly refreshTrigger = signal(0);
 
@@ -88,7 +97,17 @@ export class ProductManagementComponent {
   /** FIX 2: Stats computed from vm.stats (updated via loadStats) */
   readonly activeCount = computed(() => this.vm().stats.active);
 
-  readonly outOfStockCount = computed(() => this.vm().stats.outOfStock);
+  // FIX: Compute out-of-stock count from inventoryMap (authoritative source for stock)
+  readonly outOfStockCount = computed(() => {
+    const inventoryMap = this.inventoryMap();
+    let count = 0;
+    inventoryMap.forEach((inventory) => {
+      if (inventory && inventory.quantityAvailable === 0) {
+        count++;
+      }
+    });
+    return count;
+  });
 
   // FIX 2: Load products when any filter or page changes
   private readonly filterChange$ = toObservable(
@@ -121,13 +140,15 @@ export class ProductManagementComponent {
 
   // FIX 2: Stats computation stream - reloads when trigger changes
   // Uses getAdminProducts to count ALL products including inactive ones
+  // NOTE: outOfStock is computed separately from inventoryMap (authoritative source)
   private readonly stats$ = toObservable(this.statsTrigger).pipe(
     switchMap(() =>
       this.productService.getAdminProducts(0, 1000).pipe(
         map((res: ProductPage) => ({
           total: res.totalElements,
           active: res.content.filter((p) => p.active).length,
-          outOfStock: res.content.filter((p) => p.stockQuantity <= 0).length,
+          // outOfStock is computed from inventoryMap in the computed signal below
+          outOfStock: 0,
         })),
         catchError(() =>
           of({ total: 0, active: 0, outOfStock: 0 }),
@@ -136,6 +157,7 @@ export class ProductManagementComponent {
     ),
     startWith({ total: 0, active: 0, outOfStock: 0 }),
   );
+
 
   private readonly products$ = this.filterChange$.pipe(
     switchMap((filters) => {
@@ -157,6 +179,8 @@ export class ProductManagementComponent {
         tap((res: ProductPage) => {
           // FIX 1: Update local products when new data arrives
           this.localProducts.set(res.content);
+          // Load inventory for each product
+          this.loadInventoryForProducts(res.content);
         }),
         map((res: ProductPage) => ({
           products: res.content,
@@ -432,5 +456,126 @@ export class ProductManagementComponent {
 
   refresh(): void {
     this.loadProducts();
+  }
+
+  /**
+   * Load inventory data for all products in the list.
+   * Uses batch fetching to get all inventory in ONE request instead of N requests.
+   * This eliminates console noise from individual 404 errors.
+   */
+  private loadInventoryForProducts(products: Product[]): void {
+    if (products.length === 0) return;
+
+    this.inventoryService.getAllInventory().pipe(
+      catchError(() => of([] as InventoryResponse[])),
+    ).subscribe((allInventory) => {
+      const currentMap = new Map<string, InventoryResponseWithStatus | null>();
+      
+      // Create a lookup map from the batch response
+      const inventoryLookup = new Map<string, InventoryResponseWithStatus>();
+      // Handle both array and page response formats
+      const items = Array.isArray(allInventory) 
+        ? allInventory 
+        : (allInventory as any).content ?? [];
+      
+      items.forEach((inv: InventoryResponse) => {
+        inventoryLookup.set(inv.productId, { ...inv, isInitialized: true });
+      });
+
+      // Map each product to its inventory (or null if not initialized)
+      products.forEach((product) => {
+        const inventory = inventoryLookup.get(product.id) ?? null;
+        currentMap.set(product.id, inventory);
+      });
+
+      this.inventoryMap.set(currentMap);
+    });
+  }
+
+  /**
+   * Get inventory for a specific product.
+   * Returns null if no inventory data available.
+   */
+  getInventory(productId: string): InventoryResponseWithStatus | null {
+    return this.inventoryMap().get(productId) ?? null;
+  }
+
+  /**
+   * Get stock quantity class based on inventory levels.
+   * Returns color class for stock display.
+   */
+  getStockClass(product: Product): string {
+    const inventory = this.getInventory(product.id);
+    const available = inventory?.quantityAvailable ?? 0;
+    const threshold = inventory?.lowStockThreshold ?? 10;
+
+    if (available === 0) return 'text-red-400';
+    if (available <= threshold) return 'text-amber-400';
+    return 'text-emerald-400';
+  }
+
+  /**
+   * Get stock display text based on inventory levels.
+   */
+  getStockText(product: Product): string {
+    const inventory = this.getInventory(product.id);
+    const available = inventory?.quantityAvailable ?? 0;
+
+    if (available === 0) return 'Out of Stock';
+    return `${available} available`;
+  }
+
+  /**
+   * Check if a product needs inventory initialization.
+   * Returns true if inventory exists but isInitialized is false.
+   */
+  needsInitialization(productId: string): boolean {
+    const inventory = this.getInventory(productId);
+    return inventory !== null && inventory.isInitialized === false;
+  }
+
+  /**
+   * Check if a product is currently being initialized.
+   */
+  isInitializing(productId: string): boolean {
+    return this.initializingIds().has(productId);
+  }
+
+  /**
+   * Initialize inventory for a product that doesn't have inventory data yet.
+   * Calls the backend POST /api/inventory/initialize/{productId} with initial quantity of 0.
+   */
+  initializeInventory(productId: string): void {
+    // Add to initializing set to show spinner
+    this.initializingIds.update((set) => new Set(set).add(productId));
+
+    this.inventoryService
+      .initializeInventory(productId, 0)
+      .pipe(
+        catchError((err: unknown) => {
+          const message =
+            err instanceof Error
+              ? err.message
+              : 'Failed to initialize inventory.';
+          console.error('[Initialize Inventory] Error:', message);
+          alert('Failed to initialize inventory: ' + message);
+          return of(null);
+        }),
+        finalize(() => {
+          // Remove from initializing set regardless of success/failure
+          this.initializingIds.update((set) => {
+            const newSet = new Set(set);
+            newSet.delete(productId);
+            return newSet;
+          });
+        }),
+      )
+      .subscribe((result) => {
+        if (result !== null) {
+          // Success: reload all inventory data to refresh the map
+          const currentProducts = this.displayProducts();
+          this.loadInventoryForProducts(currentProducts);
+        }
+      });
   }
 }

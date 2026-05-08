@@ -23,7 +23,6 @@ export interface Product {
   categoryId: string;
   /** Display name of the category (populated by the backend). */
   categoryName?: string;
-  stockQuantity: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -49,14 +48,13 @@ export interface PagedResponse<T> {
 
 export interface ProductRequest {
   name: string;
-  description: string;
+  description?: string;
   /** Unit price in Egyptian Pounds (EGP). */
   price: number;
   categoryId: string;
-  imageUrls: string[];
-  sku: string;
-  stockQuantity: number;
-  active: boolean;
+  imageUrls?: string[];
+  sku?: string;
+  active?: boolean;
 }
 
 export type ProductPage = PagedResponse<Product>;

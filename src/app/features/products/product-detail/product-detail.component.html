@@ -99,12 +99,19 @@
 
         <!-- Stock status -->
         <div class="flex items-center gap-3">
-          @if (product.stockQuantity > 0) {
+          @if (!isOutOfStock() && !isLowStock()) {
             <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-sm font-medium text-emerald-400 ring-1 ring-emerald-500/20">
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              In Stock ({{ product.stockQuantity }} left)
+              In Stock ({{ availableStock() }} left)
+            </span>
+          } @else if (!isOutOfStock()) {
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1.5 text-sm font-medium text-amber-400 ring-1 ring-amber-500/20">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              Only {{ availableStock() }} left!
             </span>
           } @else {
             <span class="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 px-3 py-1.5 text-sm font-medium text-red-400 ring-1 ring-red-500/20">
@@ -138,7 +145,7 @@
         </div>
 
         <!-- Quantity selector + Add to Cart -->
-        @if (product.stockQuantity > 0) {
+        @if (!isOutOfStock()) {
           <div class="space-y-4">
             <!-- Quantity selector -->
             <div class="flex items-center gap-4">
@@ -159,7 +166,7 @@
                   type="button"
                   class="flex h-10 w-10 items-center justify-center text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200"
                   (click)="incrementQuantity()"
-                  [disabled]="quantity() >= product.stockQuantity"
+                  [disabled]="quantity() >= availableStock()"
                 >
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -173,15 +180,33 @@
               type="button"
               class="w-full rounded-lg bg-indigo-600 py-3.5 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:bg-indigo-500 hover:shadow-xl hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
               (click)="addToCart()"
+              [disabled]="addingToCart() || isOutOfStock()"
             >
-              Add to Cart
+              @if (addingToCart()) {
+                <span class="flex items-center justify-center gap-2">
+                  <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Adding...
+                </span>
+              } @else if (addToCartSuccess()) {
+                <span class="flex items-center justify-center gap-2">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Added!
+                </span>
+              } @else {
+                Add to Cart
+              }
             </button>
           </div>
         } @else {
           <button
             type="button"
             disabled
-            class="w-full cursor-not-allowed rounded-lg bg-slate-700 py-3.5 text-sm font-medium text-slate-500"
+            class="w-full cursor-not-allowed rounded-lg bg-slate-700 py-3.5 text-sm font-medium text-slate-500 opacity-50"
           >
             Out of Stock
           </button>

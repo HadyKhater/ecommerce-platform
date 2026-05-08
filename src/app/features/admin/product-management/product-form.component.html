@@ -122,13 +122,10 @@
               id="sku"
               type="text"
               formControlName="sku"
-              placeholder="e.g. PROD-001"
+              placeholder="Auto-generated if empty"
               class="input-dark"
-              [ngClass]="form.get('sku')?.invalid && form.get('sku')?.touched ? 'border-red-500/50' : ''"
             />
-            @if (form.get('sku')?.invalid && form.get('sku')?.touched) {
-              <p class="mt-1 text-xs text-red-400">SKU is required (max 50 chars).</p>
-            }
+            <p class="mt-1 text-xs text-slate-500">Optional - auto-generated if empty.</p>
           </div>
         </div>
 
@@ -150,22 +147,6 @@
             </select>
             @if (form.get('categoryId')?.invalid && form.get('categoryId')?.touched) {
               <p class="mt-1 text-xs text-red-400">Category is required.</p>
-            }
-          </div>
-
-          <!-- Stock Quantity -->
-          <div>
-            <label for="stockQuantity" class="mb-1 block text-sm font-medium text-slate-300">Stock Quantity</label>
-            <input
-              id="stockQuantity"
-              type="number"
-              formControlName="stockQuantity"
-              min="0"
-              class="input-dark"
-              [ngClass]="form.get('stockQuantity')?.invalid && form.get('stockQuantity')?.touched ? 'border-red-500/50' : ''"
-            />
-            @if (form.get('stockQuantity')?.invalid && form.get('stockQuantity')?.touched) {
-              <p class="mt-1 text-xs text-red-400">Stock quantity must be 0 or more.</p>
             }
           </div>
         </div>

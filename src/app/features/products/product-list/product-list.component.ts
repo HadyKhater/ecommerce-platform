@@ -9,11 +9,14 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DecimalPipe, isPlatformBrowser, NgClass, NgOptimizedImage } from '@angular/common';
-import { catchError, debounceTime, map, of, startWith, switchMap, combineLatest } from 'rxjs';
+import { catchError, debounceTime, map, of, startWith, switchMap, combineLatest, tap } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
 import { CategoryService } from '../../../shared/services/category.service';
+import { CartService } from '../../../shared/services/cart.service';
+import { InventoryService } from '../../../shared/services/inventory.service';
 import { Product, ProductPage, Category } from '../../../shared/models/product.model';
+import { InventoryResponse } from '../../../shared/models/inventory.model';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 
 export interface ProductListVm {
@@ -36,8 +39,13 @@ export interface ProductListVm {
 export class ProductListComponent implements OnInit {
   private readonly productService = inject(ProductService);
   private readonly categoryService = inject(CategoryService);
+  private readonly cartService = inject(CartService);
+  private readonly inventoryService = inject(InventoryService);
   private readonly route = inject(ActivatedRoute);
   private readonly platformId = inject(PLATFORM_ID);
+
+  /** Inventory map for live stock data - authoritative source */
+  readonly inventoryMap = signal<Map<string, InventoryResponse | null>>(new Map());
 
   /** Page settings - load all products for client-side grouping */
   readonly currentPage = signal(0);
@@ -129,6 +137,10 @@ export class ProductListComponent implements OnInit {
         : this.productService.getProducts(0, this.pageSize());
 
       return fetch$.pipe(
+        tap((res: ProductPage) => {
+          // Load inventory for all products after fetching
+          this.loadInventoryForProducts(res.content);
+        }),
         map((res: ProductPage): ProductListVm => {
           this.productsLoaded = true;
           this.currentProducts = res.content;
@@ -357,6 +369,91 @@ export class ProductListComponent implements OnInit {
         this.targetCategory = null;
       }, 300);
     }
+  }
+
+  /** Quick add product to cart from product card */
+  quickAddToCart(product: Product, event: Event): void {
+    event.stopPropagation();
+    event.preventDefault();
+
+    // Use inventory data as authoritative source
+    const inventory = this.getInventory(product.id);
+    const available = inventory?.quantityAvailable ?? 0;
+
+    if (available <= 0) return;
+
+    this.cartService.addToCart({
+      productId: product.id,
+      quantity: 1,
+    }).subscribe({
+      error: (err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Failed to add to cart.';
+        console.error('Failed to quick add:', message);
+      },
+    });
+  }
+
+  /**
+   * Load inventory data for all products in the list.
+   * Uses batch fetching to get all inventory in ONE request instead of N requests.
+   * This eliminates console noise from individual 404 errors.
+   */
+  private loadInventoryForProducts(products: Product[]): void {
+    if (products.length === 0) return;
+
+    this.inventoryService.getAllInventory().pipe(
+      catchError(() => of([] as InventoryResponse[])),
+    ).subscribe((allInventory) => {
+      const currentMap = new Map<string, InventoryResponse | null>();
+      
+      // Create a lookup map from the batch response
+      const inventoryLookup = new Map<string, InventoryResponse>();
+      allInventory.forEach((inv: InventoryResponse) => {
+        inventoryLookup.set(inv.productId, inv);
+      });
+
+      // Map each product to its inventory (or null if not initialized)
+      products.forEach((product) => {
+        const inventory = inventoryLookup.get(product.id) ?? null;
+        currentMap.set(product.id, inventory);
+      });
+
+      this.inventoryMap.set(currentMap);
+    });
+  }
+
+  /**
+   * Get inventory for a specific product.
+   * Returns null if no inventory data available.
+   */
+  getInventory(productId: string): InventoryResponse | null {
+    return this.inventoryMap().get(productId) ?? null;
+  }
+
+  /**
+   * Get available stock quantity from inventory (authoritative source).
+   * Returns 0 if inventory not loaded.
+   */
+  getAvailableStock(product: Product): number {
+    const inventory = this.getInventory(product.id);
+    return inventory?.quantityAvailable ?? 0;
+  }
+
+  /**
+   * Check if product is out of stock based on inventory data.
+   */
+  isOutOfStock(product: Product): boolean {
+    return this.getAvailableStock(product) === 0;
+  }
+
+  /**
+   * Check if product has low stock based on inventory data.
+   */
+  isLowStock(product: Product): boolean {
+    const inventory = this.getInventory(product.id);
+    const available = inventory?.quantityAvailable ?? 0;
+    const threshold = inventory?.lowStockThreshold ?? 10;
+    return available > 0 && available <= threshold;
   }
 }
 

@@ -223,9 +223,11 @@
                 <h3 class="mb-1 line-clamp-2 text-sm font-semibold text-slate-100">{{ product.name }}</h3>
                 <div class="mb-3 flex items-center justify-between">
                   <span class="text-xl font-bold gradient-text">{{ product.price | number:'1.2-2' }} EGP</span>
-                  <span [class]="product.stockQuantity > 0 ? 'text-xs text-emerald-400' : 'text-xs text-red-400'">
-                    {{ product.stockQuantity > 0 ? 'In Stock' : 'Out of Stock' }}
-                  </span>
+                  @if (product.active) {
+                    <span class="text-xs text-emerald-400">Active</span>
+                  } @else {
+                    <span class="text-xs text-slate-500">Inactive</span>
+                  }
                 </div>
                 <button [routerLink]="['/products', product.id]" class="group/btn w-full rounded-xl py-2.5 text-sm font-medium text-white transition-all duration-200 flex items-center justify-center gap-2 hover:opacity-90" style="background: linear-gradient(135deg, #4f46e5, #7c3aed);">
                   View Details

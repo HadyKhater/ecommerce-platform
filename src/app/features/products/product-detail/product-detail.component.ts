@@ -10,12 +10,16 @@ import { DecimalPipe, NgClass } from '@angular/common';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
+import { CartService } from '../../../shared/services/cart.service';
+import { InventoryService } from '../../../shared/services/inventory.service';
 import { Product } from '../../../shared/models/product.model';
+import { InventoryResponse } from '../../../shared/models/inventory.model';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 
 export interface ProductDetailVm {
   product: Product | null;
+  inventory: InventoryResponse | null;
   loading: boolean;
   error: string | null;
 }
@@ -30,6 +34,8 @@ export interface ProductDetailVm {
 })
 export class ProductDetailComponent {
   private readonly productService = inject(ProductService);
+  private readonly cartService = inject(CartService);
+  private readonly inventoryService = inject(InventoryService);
   private readonly route = inject(ActivatedRoute);
 
   /** Product ID from route params */
@@ -41,8 +47,17 @@ export class ProductDetailComponent {
   /** Quantity for add to cart */
   readonly quantity = signal<number>(1);
 
+  /** Loading state for add to cart */
+  readonly addingToCart = signal(false);
+
+  /** Success feedback state */
+  readonly addToCartSuccess = signal(false);
+
   /** Observable that emits whenever productId changes */
   private readonly productIdChange$ = toObservable(this.productId);
+
+  /** Inventory data for the current product */
+  readonly inventory = signal<InventoryResponse | null>(null);
 
   constructor() {
     // Read initial route param
@@ -56,18 +71,35 @@ export class ProductDetailComponent {
       if (!id) {
         return of({
           product: null,
+          inventory: null,
           loading: false,
           error: 'Product ID is missing.',
         });
       }
       return this.productService.getProductById(id).pipe(
-        map((product: Product) => ({
-          product,
-          loading: false,
-          error: null as string | null,
-        })),
+        switchMap((product: Product) => {
+          // Load inventory for this product
+          return this.inventoryService.getInventoryByProductId(id).pipe(
+            map((inventory: InventoryResponse | null) => ({
+              product,
+              inventory,
+              loading: false,
+              error: null as string | null,
+            })),
+            catchError(() => {
+              // If inventory not found, still show product
+              return of({
+                product,
+                inventory: null,
+                loading: false,
+                error: null as string | null,
+              });
+            }),
+          );
+        }),
         startWith({
           product: null as Product | null,
+          inventory: null as InventoryResponse | null,
           loading: true,
           error: null as string | null,
         }),
@@ -76,6 +108,7 @@ export class ProductDetailComponent {
             err instanceof Error ? err.message : 'Failed to load product.';
           return of({
             product: null as Product | null,
+            inventory: null as InventoryResponse | null,
             loading: false,
             error: message,
           });
@@ -87,9 +120,27 @@ export class ProductDetailComponent {
   readonly vm = toSignal(this.product$, {
     initialValue: {
       product: null,
+      inventory: null,
       loading: true,
       error: null as string | null,
     },
+  });
+
+  /** Get available stock from inventory */
+  readonly availableStock = computed(() => {
+    return this.vm().inventory?.quantityAvailable ?? 0;
+  });
+
+  /** Check if product is out of stock */
+  readonly isOutOfStock = computed(() => {
+    return this.availableStock() === 0;
+  });
+
+  /** Check if product has low stock */
+  readonly isLowStock = computed(() => {
+    const available = this.availableStock();
+    const threshold = this.vm().inventory?.lowStockThreshold ?? 10;
+    return available > 0 && available <= threshold;
   });
 
   /** Check if the product has images */
@@ -132,7 +183,7 @@ export class ProductDetailComponent {
 
   /** Increment quantity */
   incrementQuantity(): void {
-    const max = this.vm().product?.stockQuantity ?? 0;
+    const max = this.availableStock();
     this.quantity.update((q) => (q < max ? q + 1 : q));
   }
 
@@ -141,9 +192,33 @@ export class ProductDetailComponent {
     this.quantity.update((q) => (q > 1 ? q - 1 : 1));
   }
 
-  /** Add to cart (placeholder) */
+  /** Add to cart */
   addToCart(): void {
-    // TODO: Implement cart functionality
-    console.log('Add to cart:', this.vm().product?.id, 'Quantity:', this.quantity());
+    const product = this.vm().product;
+    if (!product || this.addingToCart() || this.isOutOfStock()) return;
+
+    this.addingToCart.set(true);
+    this.addToCartSuccess.set(false);
+
+    this.cartService
+      .addToCart({
+        productId: product.id,
+        quantity: this.quantity(),
+      })
+      .subscribe({
+        next: () => {
+          this.addToCartSuccess.set(true);
+          // Reset success message after 2 seconds
+          setTimeout(() => this.addToCartSuccess.set(false), 2000);
+        },
+        error: (err: unknown) => {
+          const message =
+            err instanceof Error ? err.message : 'Failed to add to cart.';
+          console.error('Failed to add to cart:', message);
+        },
+        complete: () => {
+          this.addingToCart.set(false);
+        },
+      });
   }
 }

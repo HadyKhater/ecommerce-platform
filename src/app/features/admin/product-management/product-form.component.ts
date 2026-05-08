@@ -54,13 +54,12 @@ export class ProductFormComponent {
   );
 
   readonly form: FormGroup = this.fb.group({
-    sku: ['', [Validators.required, Validators.maxLength(50)]],
+    sku: [''],
     name: ['', [Validators.required, Validators.maxLength(200)]],
-    description: ['', [Validators.required, Validators.maxLength(2000)]],
+    description: ['', [Validators.maxLength(2000)]],
     priceEgp: [0, [Validators.required, Validators.min(0.01)]],
     imageUrls: [''],
     categoryId: ['', Validators.required],
-    stockQuantity: [0, [Validators.required, Validators.min(0)]],
     active: [true],
   });
 
@@ -99,7 +98,6 @@ export class ProductFormComponent {
             priceEgp: product.price,
             imageUrls: (product.imageUrls ?? []).join(', '),
             categoryId: product.categoryId,
-            stockQuantity: product.stockQuantity,
             active: product.active,
           });
           this.loadingProduct.set(false);
@@ -137,12 +135,11 @@ export class ProductFormComponent {
     // Build complete request matching backend CreateProductRequest/UpdateProductRequest
     const request: ProductRequest = {
       name: rawValue.name,
-      description: rawValue.description ?? '',
+      description: rawValue.description || undefined,
       price: Number(rawValue.priceEgp),
       categoryId: rawValue.categoryId,
       imageUrls: this.parseImageUrls(rawValue.imageUrls ?? ''),
-      sku: rawValue.sku || Date.now().toString(),
-      stockQuantity: Number(rawValue.stockQuantity ?? 0),
+      sku: rawValue.sku || undefined,
       active: Boolean(rawValue.active),
     };
 
