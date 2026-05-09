@@ -77,8 +77,8 @@ export class InventoryManagementComponent implements OnInit {
   readonly restockingProductId = signal<string | null>(null);
   readonly adjustingProductId = signal<string | null>(null);
 
-  // Product cache for name lookup
-  readonly productCache = signal<Map<string, string>>(new Map());
+  // Product cache for name and sku lookup
+  readonly productCache = signal<Map<string, {name: string, sku: string}>>(new Map());
 
   // Filter by specific productId (when navigating from product-management)
   readonly filterProductId = signal<string | null>(null);
@@ -131,10 +131,13 @@ export class InventoryManagementComponent implements OnInit {
     // Filter by search keyword
     if (keyword) {
       items = items.filter((item) => {
-        const productName = this.productCache().get(item.productId) || '';
+        const product = this.productCache().get(item.productId);
+        const productName = product?.name || '';
+        const productSku = product?.sku || '';
         return (
           item.productId.toLowerCase().includes(keyword) ||
-          productName.toLowerCase().includes(keyword)
+          productName.toLowerCase().includes(keyword) ||
+          productSku.toLowerCase().includes(keyword)
         );
       });
     }
@@ -226,7 +229,7 @@ export class InventoryManagementComponent implements OnInit {
       .pipe(
         tap((product: Product) => {
           const cache = new Map(this.productCache());
-          cache.set(product.id, product.name);
+          cache.set(product.id, { name: product.name, sku: product.sku || '' });
           this.productCache.set(cache);
         }),
         catchError(() => of(null)),
@@ -343,7 +346,7 @@ export class InventoryManagementComponent implements OnInit {
         tap((response) => {
           const cache = new Map(this.productCache());
           response.content.forEach((product: Product) => {
-            cache.set(product.id, product.name);
+            cache.set(product.id, { name: product.name, sku: product.sku || '' });
           });
           this.productCache.set(cache);
         }),
@@ -544,7 +547,14 @@ export class InventoryManagementComponent implements OnInit {
    * Get product name from cache
    */
   getProductName(productId: string): string {
-    return this.productCache().get(productId) || 'Unknown Product';
+    return this.productCache().get(productId)?.name || 'Unknown Product';
+  }
+
+  /**
+   * Get product sku from cache
+   */
+  getProductSku(productId: string): string {
+    return this.productCache().get(productId)?.sku || '';
   }
 
   /**

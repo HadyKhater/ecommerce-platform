@@ -26,11 +26,6 @@ export interface ProductManagementVm {
   loading: boolean;
   error: string | null;
   deleteSuccess: boolean;
-  stats: {
-    total: number;
-    active: number;
-    outOfStock: number;
-  };
 }
 
 @Component({
@@ -80,8 +75,8 @@ export class ProductManagementComponent {
   /** Manual refresh trigger for explicit reloads */
   readonly refreshTrigger = signal(0);
 
-  /** FIX 2: Stats trigger to reload stats after mutations */
-  readonly statsTrigger = signal(0);
+  /** FIX: Add a separate signal for ALL products for stats counting */
+  readonly allProducts = signal<Product[]>([]);
 
   /** Categories for filter dropdown */
   readonly categories = toSignal(
@@ -94,20 +89,11 @@ export class ProductManagementComponent {
   // FIX 2: Search input with debounce
   readonly searchControl = new FormControl('', { nonNullable: true });
 
-  /** FIX 2: Stats computed from vm.stats (updated via loadStats) */
-  readonly activeCount = computed(() => this.vm().stats.active);
+  readonly totalProducts = computed(() => this.allProducts().length);
 
-  // FIX: Compute out-of-stock count from inventoryMap (authoritative source for stock)
-  readonly outOfStockCount = computed(() => {
-    const inventoryMap = this.inventoryMap();
-    let count = 0;
-    inventoryMap.forEach((inventory) => {
-      if (inventory && inventory.quantityAvailable === 0) {
-        count++;
-      }
-    });
-    return count;
-  });
+  readonly activeCount = computed(() => this.allProducts().filter(p => p.active).length);
+
+  readonly outOfStockCount = signal(0);
 
   // FIX 2: Load products when any filter or page changes
   private readonly filterChange$ = toObservable(
@@ -138,25 +124,7 @@ export class ProductManagementComponent {
     }),
   );
 
-  // FIX 2: Stats computation stream - reloads when trigger changes
-  // Uses getAdminProducts to count ALL products including inactive ones
-  // NOTE: outOfStock is computed separately from inventoryMap (authoritative source)
-  private readonly stats$ = toObservable(this.statsTrigger).pipe(
-    switchMap(() =>
-      this.productService.getAdminProducts(0, 1000).pipe(
-        map((res: ProductPage) => ({
-          total: res.totalElements,
-          active: res.content.filter((p) => p.active).length,
-          // outOfStock is computed from inventoryMap in the computed signal below
-          outOfStock: 0,
-        })),
-        catchError(() =>
-          of({ total: 0, active: 0, outOfStock: 0 }),
-        ),
-      ),
-    ),
-    startWith({ total: 0, active: 0, outOfStock: 0 }),
-  );
+
 
 
   private readonly products$ = this.filterChange$.pipe(
@@ -190,7 +158,6 @@ export class ProductManagementComponent {
           loading: false,
           error: null as string | null,
           deleteSuccess: false,
-          stats: { total: 0, active: 0, outOfStock: 0 }, // Will be updated by stats$
         })),
         startWith({
           products: [] as Product[],
@@ -200,7 +167,6 @@ export class ProductManagementComponent {
           loading: true,
           error: null as string | null,
           deleteSuccess: false,
-          stats: { total: 0, active: 0, outOfStock: 0 },
         }),
         catchError((err: unknown) => {
           const message =
@@ -215,26 +181,13 @@ export class ProductManagementComponent {
             loading: false,
             error: message,
             deleteSuccess: false,
-            stats: { total: 0, active: 0, outOfStock: 0 },
           });
         }),
       );
     }),
   );
 
-  // FIX 2: Combined stream that merges products and stats
-  private readonly vm$ = this.products$.pipe(
-    switchMap((productData) =>
-      this.stats$.pipe(
-        map((stats) => ({
-          ...productData,
-          stats,
-        })),
-      ),
-    ),
-  );
-
-  readonly vm = toSignal(this.vm$, {
+  readonly vm = toSignal(this.products$, {
     initialValue: {
       products: [] as Product[],
       totalCount: 0,
@@ -243,7 +196,6 @@ export class ProductManagementComponent {
       loading: true,
       error: null as string | null,
       deleteSuccess: false,
-      stats: { total: 0, active: 0, outOfStock: 0 },
     },
   });
 
@@ -254,6 +206,20 @@ export class ProductManagementComponent {
   readonly pages = computed(() =>
     Array.from({ length: this.totalPages() }, (_, i) => i),
   );
+
+  readonly pageNumbers = computed(() => {
+    const total = this.totalPages();
+    const current = this.currentPage();
+    const pages = [];
+    const start = Math.max(0, current - 2);
+    const end = Math.min(total - 1, start + 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  });
+
+  min(a: number, b: number) {
+    return Math.min(a, b);
+  }
 
   /** FIX 3: Filter deleted products from the display without API refresh */
   /** FIX 1: Merge localProducts (for live updates) with vm.products, filtering deleted */
@@ -267,14 +233,29 @@ export class ProductManagementComponent {
   });
 
   /**
-   * FIX 2: Load stats by fetching all products and counting locally
+   * FIX: Load stats by fetching all products and counting locally
    * Call this after any mutation (create, delete, toggle status)
    */
   private loadStats(): void {
-    this.statsTrigger.update((n) => n + 1);
+    this.productService.getAdminProducts(0, 9999).subscribe({
+      next: (res) => {
+        this.allProducts.set(res.content);
+        // We no longer load inventory for all products just to calculate out-of-stock count
+      },
+      error: (err) => console.error('Failed to load stats', err)
+    });
+
+    this.inventoryService.getOutOfStockCount().subscribe({
+      next: (res) => {
+        this.outOfStockCount.set(res.count);
+      },
+      error: (err) => console.error('Failed to load out of stock count', err)
+    });
   }
 
   constructor() {
+    this.loadStats();
+
     // Subscribe to search input changes
     this.searchInput$.subscribe();
 

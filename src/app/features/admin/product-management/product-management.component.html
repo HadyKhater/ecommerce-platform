@@ -10,8 +10,8 @@
         </div>
         <div>
           <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total Products</p>
-          <!-- FIX 2: Use vm().stats.total for real-time updates -->
-          <p class="text-2xl font-bold text-slate-100">{{ vm().stats.total }}</p>
+          <!-- FIX 2: Use totalProducts() for real-time updates -->
+          <p class="text-2xl font-bold text-slate-100">{{ totalProducts() }}</p>
         </div>
       </div>
     </div>
@@ -359,47 +359,53 @@
         </div>
       </div>
 
-      <!-- Pagination -->
-      @if (totalPages() > 1) {
-        @defer (on viewport) {
-          <nav
-            class="mt-6 flex items-center justify-center gap-2"
-            aria-label="Admin product pagination"
-          >
+      <!-- Pagination Controls -->
+      @if (vm().totalCount > 0) {
+        <div class="flex items-center justify-between px-6 py-4 border-t border-slate-700 mt-6">
+          <!-- Left: showing X-Y of Z -->
+          <span class="text-sm text-slate-400">
+            Showing {{ currentPage() * pageSize() + 1 }} - 
+            {{ min((currentPage() + 1) * pageSize(), vm().totalCount) }} 
+            of {{ vm().totalCount }} items
+          </span>
+          
+          <!-- Right: prev/next + page numbers -->
+          <div class="flex items-center gap-2">
+            <!-- Previous button -->
             <button
               type="button"
-              class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-dark-hover disabled:cursor-not-allowed disabled:opacity-40"
-              [disabled]="currentPage() === 0"
               (click)="previousPage()"
-            >
-              Previous
+              [disabled]="currentPage() === 0"
+              class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 
+                     text-slate-400 hover:bg-slate-700 disabled:opacity-40 
+                     disabled:cursor-not-allowed text-sm transition-colors">
+              ← Prev
             </button>
-
-            @for (p of pages(); track p) {
+            
+            <!-- Page numbers (show max 5) -->
+            @for (p of pageNumbers(); track p) {
               <button
                 type="button"
-                class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
-                [ngClass]="p === currentPage()
-                  ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                  : 'border border-slate-700 text-slate-300 hover:border-slate-600 hover:bg-dark-hover'"
                 (click)="goToPage(p)"
-              >
+                [class]="p === currentPage() ? 
+                  'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm' :
+                  'px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 text-sm transition-colors'">
                 {{ p + 1 }}
               </button>
             }
-
+            
+            <!-- Next button -->
             <button
               type="button"
-              class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:border-slate-600 hover:bg-dark-hover disabled:cursor-not-allowed disabled:opacity-40"
-              [disabled]="currentPage() >= totalPages() - 1"
               (click)="nextPage()"
-            >
-              Next
+              [disabled]="currentPage() >= totalPages() - 1"
+              class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 
+                     text-slate-400 hover:bg-slate-700 disabled:opacity-40 
+                     disabled:cursor-not-allowed text-sm transition-colors">
+              Next →
             </button>
-          </nav>
-        } @placeholder {
-          <div class="h-10"></div>
-        }
+          </div>
+        </div>
       }
     }
   }

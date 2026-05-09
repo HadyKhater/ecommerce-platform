@@ -52,6 +52,13 @@ export class InventoryService {
   }
 
   /**
+   * Get the total count of out-of-stock items.
+   */
+  getOutOfStockCount(): Observable<{count: number}> {
+    return this.http.get<{count: number}>(`${this.baseUrl}/out-of-stock/count`);
+  }
+
+  /**
    * Get inventory details for a specific product by its ID.
    * Returns InventoryResponse with stock levels, reserved quantity, and thresholds.
    * If the product hasn't been initialized in inventory yet (404), returns a placeholder
