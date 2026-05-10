@@ -1,52 +1,35 @@
-export type OrderStatus =
-  | 'DRAFT'
-  | 'PENDING_PAYMENT'
-  | 'PLACED'
-  | 'CONFIRMED'
-  | 'SHIPPED'
-  | 'DELIVERED'
-  | 'CANCELLED'
-  | 'REFUNDED';
-
-export interface Address {
-  line1: string;
-  line2: string | null;
-  city: string;
-  stateOrGovernorate: string | null;
-  postalCode: string | null;
-  countryCode: string;
-}
-
-export interface OrderItem {
+export interface CartItemDto {
   productId: string;
-  sku: string;
-  name: string;
   quantity: number;
-  /** Line unit price captured on the order, in EGP. */
-  unitPriceEgp: number;
-  /** Line total in EGP. */
-  lineTotalEgp: number;
 }
 
-export interface Order {
+export interface OrderRequest {
+  items: CartItemDto[];
+  shippingAddress: string;
+  currency: string;
+  userEmail?: string;
+}
+
+export interface OrderItemResponse {
   id: string;
-  reference: string;
-  status: OrderStatus;
-  createdAt: string;
-  shippingAddress: Address;
-  billingAddress: Address | null;
-  items: OrderItem[];
-  currency: 'EGP';
-  subtotalEgp: number;
-  shippingEgp: number;
-  taxEgp: number;
-  grandTotalEgp: number;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
 }
 
-export interface PlaceOrderRequest {
-  shippingAddress: Address;
-  billingSameAsShipping: boolean;
-  billingAddress: Address | null;
-  cartId?: string | null;
-  paymentMethodHint?: string | null;
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+
+export interface OrderResponse {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  status: OrderStatus;
+  totalAmount: number;
+  currency: string;
+  shippingAddress: string;
+  items: OrderItemResponse[];
+  createdAt: string;
+  updatedAt: string;
 }

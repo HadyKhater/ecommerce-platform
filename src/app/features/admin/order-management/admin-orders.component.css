@@ -1,0 +1,35 @@
+/* Admin Orders Component Styles */
+
+/* Status badge transitions */
+select {
+  cursor: pointer;
+}
+
+/* Table row hover effect */
+tr:hover select {
+  border-color: #4f46e5;
+}
+
+/* Focus styles for select */
+select:focus {
+  outline: none;
+}
+
+/* Custom scrollbar for table container */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

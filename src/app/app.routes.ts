@@ -9,6 +9,14 @@ import { adminGuard } from './core/guards/admin.guard';
 
 
 export const routes: Routes = [
+  {
+    path: 'profile',
+    loadComponent: () =>
+      import('./features/profile/profile.component').then(
+        (m) => m.ProfileComponent,
+      ),
+    canActivate: [authGuard],
+  },
 
   {
 
@@ -65,6 +73,70 @@ export const routes: Routes = [
       import('./features/cart/cart.component').then(
 
         (m) => m.CartComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
+    path: 'checkout',
+
+    loadComponent: () =>
+
+      import('./features/checkout/checkout.component').then(
+
+        (m) => m.CheckoutComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
+    path: 'payment',
+
+    loadComponent: () =>
+
+      import('./features/payment/payment.component').then(
+
+        (m) => m.PaymentComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
+    path: 'order-confirmation',
+
+    loadComponent: () =>
+
+      import('./features/orders/order-confirmation.component').then(
+
+        (m) => m.OrderConfirmationComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
+    path: 'orders',
+
+    loadComponent: () =>
+
+      import('./features/orders/order-history.component').then(
+
+        (m) => m.OrderHistoryComponent,
 
       ),
 
@@ -188,9 +260,9 @@ export const routes: Routes = [
 
         loadComponent: () =>
 
-          import('./features/admin/placeholder/placeholder.component').then(
+          import('./features/admin/order-management/admin-orders.component').then(
 
-            (m) => m.PlaceholderComponent,
+            (m) => m.AdminOrdersComponent,
 
           ),
 
