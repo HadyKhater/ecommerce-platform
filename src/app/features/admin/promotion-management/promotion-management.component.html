@@ -1,0 +1,199 @@
+<section>
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h2 class="text-2xl font-bold text-slate-100">Promotion Management</h2>
+      <p class="text-sm text-slate-400">Manage discount codes and promotions</p>
+    </div>
+    <button type="button" (click)="openAddModal()" class="btn-primary">
+      <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+      </svg>
+      Add Promotion
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400" role="alert">
+      {{ error() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="glass-card overflow-hidden">
+      <div class="animate-pulse space-y-0">
+        @for (skeleton of [1,2,3]; track skeleton) {
+          <div class="flex items-center gap-4 border-b border-slate-700/50 px-6 py-4">
+            <div class="flex-1 space-y-2">
+              <div class="h-4 w-1/4 rounded bg-slate-700/50"></div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    @if (promotions().length === 0) {
+      <div class="py-16 text-center glass-card">
+        <svg class="mx-auto h-16 w-16 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-slate-400">No promotions found</h3>
+        <p class="mt-1 text-sm text-slate-500">Get started by creating a new promotion.</p>
+      </div>
+    } @else {
+      <div class="glass-card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-700/50">
+            <thead class="bg-slate-800/50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Name</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Code</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Discount</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Valid Dates</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Usage</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-700/50">
+              @for (promotion of promotions(); track promotion.id) {
+                <tr class="transition-colors hover:bg-slate-800/30">
+                  <td class="px-6 py-4">
+                    <div class="text-sm font-medium text-slate-100">{{ promotion.name }}</div>
+                    @if (promotion.description) {
+                      <div class="mt-1 text-xs text-slate-400 line-clamp-1">{{ promotion.description }}</div>
+                    }
+                  </td>
+                  <td class="px-6 py-4">
+                    @if (promotion.code) {
+                      <code class="rounded bg-slate-800 px-2 py-1 text-xs font-mono text-primary-400">{{ promotion.code }}</code>
+                    } @else {
+                      <span class="text-xs text-slate-500">No code</span>
+                    }
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm font-semibold text-slate-200">{{ getDiscountDisplay(promotion) }}</span>
+                    @if (promotion.minimumOrderAmount) {
+                      <div class="mt-1 text-xs text-slate-500">Min: {{ promotion.minimumOrderAmount }} EGP</div>
+                    }
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="text-xs text-slate-300">
+                      <div>From: {{ promotion.startDate | date:'MMM d, y' }}</div>
+                      <div>To: {{ promotion.endDate | date:'MMM d, y' }}</div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-sm text-slate-300">{{ getUsageDisplay(promotion) }}</span>
+                  </td>
+                  <td class="whitespace-nowrap px-6 py-4">
+                    <button type="button" (click)="toggleActive(promotion)" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors" [ngClass]="getStatusBadge(promotion).class">
+                      <span class="h-1.5 w-1.5 rounded-full" [ngClass]="promotion.active ? 'bg-emerald-400' : 'bg-slate-400'"></span>
+                      {{ getStatusBadge(promotion).label }}
+                    </button>
+                  </td>
+                  <td class="whitespace-nowrap px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <button type="button" (click)="openEditModal(promotion)" class="rounded-lg p-1.5 text-slate-400 hover:bg-primary-500/10 hover:text-primary-400 transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      @if (deletingId() === promotion.id) {
+                        <div class="flex items-center gap-1">
+                          <button type="button" (click)="deletePromotion()" class="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30">Sure?</button>
+                          <button type="button" (click)="cancelDelete()" class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-600">No</button>
+                        </div>
+                      } @else {
+                        <button type="button" (click)="confirmDelete(promotion.id)" class="rounded-lg p-1.5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</section>
+
+@if (modalOpen()) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" (click)="closeModal()">
+    <div class="w-full max-w-2xl rounded-2xl bg-dark-card p-6 shadow-xl border border-slate-700/50 max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+      <h3 class="mb-4 text-xl font-bold text-slate-100">{{ selectedPromotion() ? 'Edit Promotion' : 'Add Promotion' }}</h3>
+      
+      <form [formGroup]="promotionForm" (ngSubmit)="onSubmit()" class="space-y-4">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-300">Name *</label>
+          <input type="text" formControlName="name" class="input-dark" placeholder="Summer Sale" />
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Promo Code</label>
+            <input type="text" formControlName="code" class="input-dark" placeholder="SUMMER2026" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Discount Type *</label>
+            <select formControlName="discountType" class="input-dark">
+              <option value="PERCENTAGE">Percentage (%)</option>
+              <option value="FIXED_AMOUNT">Fixed Amount (EGP)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Discount Value *</label>
+            <input type="number" formControlName="discountValue" class="input-dark" min="0" step="0.01" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Minimum Order Amount</label>
+            <input type="number" formControlName="minimumOrderAmount" class="input-dark" min="0" step="0.01" placeholder="Optional" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Start Date *</label>
+            <input type="datetime-local" formControlName="startDate" class="input-dark" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">End Date *</label>
+            <input type="datetime-local" formControlName="endDate" class="input-dark" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">Usage Limit</label>
+            <input type="number" formControlName="usageLimit" class="input-dark" min="1" placeholder="Leave empty for unlimited" />
+          </div>
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" formControlName="active" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
+              <span class="text-sm font-medium text-slate-300">Active</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" formControlName="applicableToAll" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
+              <span class="text-sm font-medium text-slate-300">Apply to All</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-300">Description</label>
+          <textarea formControlName="description" rows="3" class="input-dark" placeholder="Promotion details..."></textarea>
+        </div>
+        
+        <div class="mt-6 flex justify-end gap-3 border-t border-slate-700/50 pt-4">
+          <button type="button" (click)="closeModal()" class="btn-secondary">Cancel</button>
+          <button type="submit" [disabled]="promotionForm.invalid || submitting()" class="btn-primary">
+            {{ submitting() ? 'Saving...' : 'Save Promotion' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

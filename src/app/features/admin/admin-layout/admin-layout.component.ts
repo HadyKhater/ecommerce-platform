@@ -72,7 +72,11 @@ export class AdminLayoutComponent {
 
     { label: 'Inventory', icon: 'inventory', route: '/admin/inventory' },
 
+    { label: 'Banners', icon: 'banners', route: '/admin/banners' },
+
     { label: 'Categories', icon: 'categories', route: '/admin/categories' },
+
+    { label: 'Promotions', icon: 'promotions', route: '/admin/promotions' },
 
     { label: 'Orders', icon: 'orders', route: '/admin/orders' },
 
@@ -158,9 +162,17 @@ export class AdminLayoutComponent {
 
       this.pageTitle.set('Categories');
 
+    } else if (url.includes('/admin/promotions')) {
+
+      this.pageTitle.set('Promotions');
+
     } else if (url.includes('/admin/inventory')) {
 
       this.pageTitle.set('Inventory');
+
+    } else if (url.includes('/admin/banners')) {
+
+      this.pageTitle.set('Banners');
 
     } else if (url.includes('/admin/orders')) {
 

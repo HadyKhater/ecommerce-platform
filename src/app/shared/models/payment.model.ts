@@ -7,6 +7,10 @@ export interface PaymentRequest {
   amount: number;
   currency: string;
   paymentMethod: PaymentMethod;
+  /** Optional discount code applied to this payment */
+  discountCode?: string;
+  /** Optional discount amount in currency units */
+  discountAmount?: number;
 }
 
 export interface PaymentResponse {

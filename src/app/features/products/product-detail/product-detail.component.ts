@@ -53,6 +53,15 @@ export class ProductDetailComponent {
   /** Success feedback state */
   readonly addToCartSuccess = signal(false);
 
+  /** Image zoom state */
+  readonly isZoomed = signal(false);
+  readonly zoomPosition = signal({ x: 50, y: 50 });
+
+  /** Touch handling for mobile swipe */
+  private touchStartX = 0;
+  private touchEndX = 0;
+  private readonly swipeThreshold = 50;
+
   /** Observable that emits whenever productId changes */
   private readonly productIdChange$ = toObservable(this.productId);
 
@@ -179,6 +188,66 @@ export class ProductDetailComponent {
   /** Select thumbnail image */
   selectImage(index: number): void {
     this.selectedImageIndex.set(index);
+    this.isZoomed.set(false);
+  }
+
+  /** Navigate to previous image */
+  prevImage(): void {
+    const product = this.vm().product;
+    if (!product?.imageUrls?.length) return;
+    const currentIndex = this.selectedImageIndex();
+    const newIndex = (currentIndex - 1 + product.imageUrls.length) % product.imageUrls.length;
+    this.selectedImageIndex.set(newIndex);
+    this.isZoomed.set(false);
+  }
+
+  /** Navigate to next image */
+  nextImage(): void {
+    const product = this.vm().product;
+    if (!product?.imageUrls?.length) return;
+    const currentIndex = this.selectedImageIndex();
+    const newIndex = (currentIndex + 1) % product.imageUrls.length;
+    this.selectedImageIndex.set(newIndex);
+    this.isZoomed.set(false);
+  }
+
+  /** Toggle zoom mode */
+  toggleZoom(): void {
+    if (this.hasImages()) {
+      this.isZoomed.update(z => !z);
+    }
+  }
+
+  /** Handle mouse move for zoom */
+  onMouseMove(event: MouseEvent): void {
+    if (!this.isZoomed()) return;
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.zoomPosition.set({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
+  }
+
+  /** Handle touch start for swipe */
+  onTouchStart(event: TouchEvent): void {
+    this.touchStartX = event.changedTouches[0].screenX;
+  }
+
+  /** Handle touch end for swipe */
+  onTouchEnd(event: TouchEvent): void {
+    this.touchEndX = event.changedTouches[0].screenX;
+    this.handleSwipe();
+  }
+
+  private handleSwipe(): void {
+    const diff = this.touchStartX - this.touchEndX;
+    if (Math.abs(diff) > this.swipeThreshold) {
+      if (diff > 0) {
+        this.nextImage();
+      } else {
+        this.prevImage();
+      }
+    }
   }
 
   /** Increment quantity */

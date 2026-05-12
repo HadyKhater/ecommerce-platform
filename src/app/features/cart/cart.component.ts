@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -11,6 +12,7 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 
 import { CartService } from '../../shared/services/cart.service';
 import { CartResponse } from '../../shared/models/cart.model';
+import { DiscountService } from '../../core/services/discount.service';
 
 export interface CartVm {
   cart: CartResponse | null;
@@ -29,6 +31,27 @@ export interface CartVm {
 export class CartComponent {
   private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
+  private readonly discountService = inject(DiscountService);
+
+  // Discount info from service
+  readonly hasDiscount = computed(() => this.discountService.hasDiscount());
+  readonly discountAmount = computed(() => this.discountService.discountAmount());
+  readonly discountCode = computed(() => this.discountService.discountCode());
+
+  // Order summary with discount
+  readonly orderSummary = computed(() => {
+    const cart = this.vm().cart;
+    const subtotal = cart?.grandTotal ?? 0;
+    const discount = this.discountAmount();
+    const shipping = 0; // Free shipping
+    return {
+      subtotal,
+      discount,
+      shipping,
+      total: Math.max(0, subtotal - discount + shipping),
+      itemCount: cart?.totalItemsCount ?? 0
+    };
+  });
 
   /** Refresh trigger signal */
   private readonly refreshTrigger = signal(0);

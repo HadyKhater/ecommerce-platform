@@ -354,8 +354,9 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           // These are expected when products haven't been initialized yet
           const url = err.url ?? '';
           const isInventoryUrl = url.includes('/inventory/');
+          const isApiUrl = url.includes('/api/');
 
-          if (!isInventoryUrl) {
+          if (!isInventoryUrl && !isApiUrl) {
             navigateSafely(['/not-found']);
           }
 

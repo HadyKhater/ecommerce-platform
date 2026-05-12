@@ -22,14 +22,49 @@
   @if (!loading() && order()) {
     <div class="rounded-2xl border border-slate-700 bg-slate-800 p-6 sm:p-8">
       
-      <!-- Order Total Preview -->
-      <div class="mb-8 flex items-center justify-between rounded-xl bg-slate-900/50 p-4 border border-slate-700/50">
-        <div>
-          <p class="text-sm text-slate-400">Total to pay</p>
-          <p class="text-xs text-slate-500">Order #{{ order()!.id | slice:0:8 }}...</p>
+      <!-- Order Summary with Discount -->
+      <div class="mb-8 rounded-xl bg-slate-900/50 p-4 border border-slate-700/50 space-y-3">
+        <!-- Subtotal -->
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400 text-sm">Subtotal</span>
+          <span class="text-slate-300">{{ orderSummary().subtotal | number:'1.2-2' }} {{ order()!.currency }}</span>
         </div>
-        <div class="text-2xl font-bold text-indigo-400">
-          {{ order()!.totalAmount | number:'1.2-2' }} <span class="text-base text-slate-300">{{ order()!.currency }}</span>
+
+        <!-- Shipping -->
+        @if (orderSummary().shipping > 0) {
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 text-sm">Shipping</span>
+            <span class="text-slate-300">{{ orderSummary().shipping | number:'1.2-2' }} {{ order()!.currency }}</span>
+          </div>
+        }
+
+        <!-- Discount -->
+        @if (discountAmount() > 0) {
+          <div class="flex items-center justify-between text-emerald-400">
+            <span class="text-sm flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Discount
+              @if (discountInfo()?.code) {
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20">{{ discountInfo()?.code }}</span>
+              }
+            </span>
+            <span class="font-medium">-{{ discountAmount() | number:'1.2-2' }} {{ order()!.currency }}</span>
+          </div>
+        }
+
+        <!-- Divider -->
+        <div class="border-t border-slate-700/50 pt-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-slate-400">Total to pay</p>
+              <p class="text-xs text-slate-500">Order #{{ order()!.id | slice:0:8 }}...</p>
+            </div>
+            <div class="text-2xl font-bold text-indigo-400">
+              {{ finalTotal() | number:'1.2-2' }} <span class="text-base text-slate-300">{{ order()!.currency }}</span>
+            </div>
+          </div>
         </div>
       </div>
 

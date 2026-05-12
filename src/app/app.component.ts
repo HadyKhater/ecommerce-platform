@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { NgClass } from '@angular/common';
@@ -13,13 +13,14 @@ import { FooterComponent } from './shared/components/footer/footer.component';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private readonly router = inject(Router);
 
   /** Whether the current route is an admin route (no public navbar/footer) */
   isAdminRoute = false;
 
-  constructor() {
+  ngOnInit(): void {
+    // Subscribe to router events to detect admin routes
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e) => {

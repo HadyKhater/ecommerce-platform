@@ -22,6 +22,8 @@ export const routes: Routes = [
 
     path: '',
 
+    pathMatch: 'full',
+
     loadComponent: () =>
 
       import('./features/home/home.component').then(
@@ -296,6 +298,34 @@ export const routes: Routes = [
 
       },
 
+      {
+
+        path: 'banners',
+
+        loadComponent: () =>
+
+          import('./features/admin/banner-management/banner-management.component').then(
+
+            (m) => m.BannerManagementComponent,
+
+          ),
+
+      },
+
+      {
+
+        path: 'promotions',
+
+        loadComponent: () =>
+
+          import('./features/admin/promotion-management/promotion-management.component').then(
+
+            (m) => m.PromotionManagementComponent,
+
+          ),
+
+      },
+
     ],
 
   },
@@ -371,4 +401,3 @@ export const routes: Routes = [
   },
 
 ];
-

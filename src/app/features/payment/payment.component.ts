@@ -1,16 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PaymentService } from '../../shared/services/payment.service';
 import { PaymentRequest, PaymentMethod } from '../../shared/models/payment.model';
 import { OrderService } from '../../shared/services/order.service';
 import { OrderResponse } from '../../shared/models/order.model';
+import { DiscountService } from '../../core/services/discount.service';
 
 @Component({
   selector: 'app-payment',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, DecimalPipe],
   templateUrl: './payment.component.html',
   styleUrl: './payment.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,11 +22,37 @@ export class PaymentComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly discountService = inject(DiscountService);
 
   paymentForm!: FormGroup;
   orderId = signal<string | null>(null);
   order = signal<OrderResponse | null>(null);
-  
+
+  // Discount computed from service (persists across page refresh)
+  discountInfo = computed(() => this.discountService.discountInfo());
+  hasDiscount = computed(() => this.discountService.hasDiscount());
+
+  // Computed values
+  discountAmount = computed(() => this.discountService.discountAmount());
+  finalTotal = computed(() => {
+    const base = this.order()?.totalAmount ?? 0;
+    const discount = this.discountAmount();
+    return Math.max(0, base - discount);
+  });
+
+  // Order summary breakdown
+  orderSummary = computed(() => {
+    const subtotal = this.order()?.totalAmount ?? 0;
+    const discount = this.discountAmount();
+    const shipping = 0; // Free shipping
+    return {
+      subtotal,
+      discount,
+      shipping,
+      total: Math.max(0, subtotal - discount + shipping)
+    };
+  });
+
   loading = signal<boolean>(true);
   submitting = signal<boolean>(false);
   error = signal<string | null>(null);
@@ -97,14 +124,18 @@ export class PaymentComponent implements OnInit {
 
     const request: PaymentRequest = {
       orderId: this.orderId()!,
-      amount: this.order()!.totalAmount,
+      amount: this.finalTotal(),
       currency: this.order()!.currency,
-      paymentMethod: 'CREDIT_CARD' as PaymentMethod
+      paymentMethod: 'CREDIT_CARD' as PaymentMethod,
+      discountCode: this.discountInfo()?.code || undefined,
+      discountAmount: this.discountAmount() > 0 ? this.discountAmount() : undefined
     };
 
     this.paymentService.processPayment(request).subscribe({
       next: (paymentResponse) => {
         this.submitting.set(false);
+        // Clear discount after successful payment
+        this.discountService.clearDiscount();
         // On success redirect to Order Confirmation
         this.router.navigate(['/order-confirmation'], { queryParams: { orderId: this.orderId() } });
       },

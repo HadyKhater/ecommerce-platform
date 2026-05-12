@@ -46,18 +46,76 @@
       <!-- Image gallery -->
       <div class="space-y-4">
         <!-- Main image -->
-        <div class="relative aspect-square overflow-hidden rounded-xl bg-slate-800">
-          <img
-            [src]="selectedImageUrl()"
-            [alt]="product.name"
-            class="h-full w-full object-cover"
-            (error)="onImgError($event)"
-          />
+        <div class="relative aspect-square overflow-hidden rounded-xl bg-slate-800 group"
+             (touchstart)="onTouchStart($event)"
+             (touchend)="onTouchEnd($event)">
+          <!-- Navigation arrows (visible on hover/desktop) -->
+          @if (product.imageUrls && product.imageUrls.length > 1) {
+            <button
+              type="button"
+              (click)="prevImage(); $event.stopPropagation()"
+              class="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-slate-900/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-slate-900/80"
+              aria-label="Previous image"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              (click)="nextImage(); $event.stopPropagation()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-slate-900/60 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-slate-900/80"
+              aria-label="Next image"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          }
+
+          <!-- Image with zoom support -->
+          <div
+            class="w-full h-full cursor-zoom-in"
+            [class.cursor-zoom-out]="isZoomed()"
+            (click)="toggleZoom()"
+            (mousemove)="onMouseMove($event)"
+          >
+            <img
+              [src]="selectedImageUrl()"
+              [alt]="product.name"
+              class="w-full h-full object-cover transition-transform duration-300"
+              [class.scale-150]="isZoomed()"
+              [style.transform-origin]="isZoomed() ? zoomPosition().x + '% ' + zoomPosition().y + '%' : 'center'"
+              (error)="onImgError($event)"
+            />
+          </div>
+
+          <!-- Zoom hint -->
+          @if (hasImages() && !isZoomed()) {
+            <div class="absolute bottom-4 right-4 px-3 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-sm text-white/80 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              Click to zoom
+            </div>
+          }
+
+          <!-- Mobile pagination dots -->
+          @if (product.imageUrls && product.imageUrls.length > 1) {
+            <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:hidden">
+              @for (img of product.imageUrls; track img; let i = $index) {
+                <button
+                  type="button"
+                  (click)="selectImage(i); $event.stopPropagation()"
+                  class="w-2 h-2 rounded-full transition-all"
+                  [class]="selectedImageIndex() === i ? 'bg-white w-4' : 'bg-white/50'"
+                  [attr.aria-label]="'Go to image ' + (i + 1)"
+                ></button>
+              }
+            </div>
+          }
         </div>
 
-        <!-- Thumbnails -->
+        <!-- Thumbnails (desktop) -->
         @if (product.imageUrls && product.imageUrls.length > 1) {
-          <div class="flex gap-2 overflow-x-auto pb-2">
+          <div class="hidden sm:flex gap-2 overflow-x-auto pb-2">
             @for (img of product.imageUrls; track img; let i = $index) {
               <button
                 type="button"
@@ -73,6 +131,13 @@
                 />
               </button>
             }
+          </div>
+        }
+
+        <!-- Mobile image counter -->
+        @if (product.imageUrls && product.imageUrls.length > 1) {
+          <div class="sm:hidden text-center text-sm text-slate-400">
+            Image {{ selectedImageIndex() + 1 }} of {{ product.imageUrls.length }}
           </div>
         }
       </div>
