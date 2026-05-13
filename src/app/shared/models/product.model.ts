@@ -12,6 +12,14 @@ export interface CategoryRequest {
   description: string;
 }
 
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  displayOrder: number;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   sku: string | null;
@@ -20,6 +28,7 @@ export interface Product {
   /** Unit price in Egyptian Pounds (EGP). */
   price: number;
   imageUrls: string[];
+  images?: ProductImage[];
   categoryId: string;
   /** Display name of the category (populated by the backend). */
   categoryName?: string;

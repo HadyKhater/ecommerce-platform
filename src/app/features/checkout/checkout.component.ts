@@ -118,23 +118,15 @@ export class CheckoutComponent implements OnInit {
       })),
       shippingAddress: shippingAddress,
       currency: formValues.currency,
-      userEmail: this.authService.user()?.email ?? ''
+      userEmail: this.authService.user()?.email ?? '',
+      promoCode: this.discountService.discountInfo()?.code,
+      discountAmount: this.appliedDiscount()
     };
 
-    this.orderService.createOrder(request).subscribe({
-      next: (orderResponse) => {
-        // Clear cart after successful order creation
-        this.cartService.clearCart().subscribe();
-        this.submitting.set(false);
-        // Navigate to payment - discount is stored in service
-        this.router.navigate(['/payment'], {
-          queryParams: { orderId: orderResponse.id }
-        });
-      },
-      error: (err) => {
-        this.error.set(err.error?.message || 'Failed to create order. Please try again.');
-        this.submitting.set(false);
-      }
+    this.submitting.set(false);
+    // Navigate to payment - pass request in state to be created on final confirmation
+    this.router.navigate(['/payment'], {
+      state: { orderRequest: request }
     });
   }
 
@@ -157,7 +149,10 @@ export class CheckoutComponent implements OnInit {
 
     this.promotionService.validatePromoCode({
       code: code,
-      orderAmount: this.cartTotal()
+      orderAmount: this.cartTotal(),
+      userId: this.authService.user()?.id,
+      userEmail: this.authService.user()?.email,
+      cartCategoryIds: this.cart()?.items.map(item => item.categoryId!) || []
     }).subscribe({
       next: (response) => {
         this.promoLoading.set(false);

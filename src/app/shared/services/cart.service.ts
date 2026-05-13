@@ -67,4 +67,32 @@ export class CartService {
   private updateCartCount(cart: CartResponse): void {
     this.cartCount.set(cart.totalItemsCount ?? 0);
   }
+
+  /** Check for and resume any pending action saved before login */
+  resumePendingAction(): void {
+    if (typeof sessionStorage === 'undefined') return;
+    
+    const raw = sessionStorage.getItem('pending_action');
+    if (!raw) return;
+
+    try {
+      const action = JSON.parse(raw);
+      if (action.type === 'ADD_TO_CART') {
+        this.addToCart({
+          productId: action.productId,
+          quantity: action.quantity
+        }).subscribe({
+          next: () => {
+            sessionStorage.removeItem('pending_action');
+            console.log(`Resumed action: Added ${action.productName} to cart`);
+          },
+          error: () => {
+            sessionStorage.removeItem('pending_action');
+          }
+        });
+      }
+    } catch (e) {
+      sessionStorage.removeItem('pending_action');
+    }
+  }
 }

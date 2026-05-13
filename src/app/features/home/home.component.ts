@@ -175,7 +175,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (promos.length === 0) return null;
     return promos.reduce((max, promo) =>
       promo.discountValue > max.discountValue ? promo : max
-    , promos[0]);
+      , promos[0]);
   });
 
   /** Category gradients */
@@ -219,9 +219,9 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   /** Navigate to products page with category query param */
-  scrollToCategory(categoryName: string): void {
+  navigateToCategory(categoryId: string): void {
     this.router.navigate(['/products'], {
-      queryParams: { category: categoryName }
+      queryParams: { category: categoryId }
     });
   }
 
@@ -383,16 +383,12 @@ export class HomeComponent implements OnInit, OnDestroy {
       }, 3000);
 
       // Initialize countdown for featured promotion
-      const featured = this.featuredPromotion();
-      if (featured) {
-        this.countdownTime.set(this.calculateCountdown(featured.endDate));
-        this.countdownInterval = setInterval(() => {
-          const promo = this.featuredPromotion();
-          if (promo) {
-            this.countdownTime.set(this.calculateCountdown(promo.endDate));
-          }
-        }, 1000);
-      }
+      this.countdownInterval = setInterval(() => {
+        const promo = this.featuredPromotion();
+        if (promo) {
+          this.countdownTime.set(this.calculateCountdown(promo.endDate));
+        }
+      }, 1000);
 
       // Start hero autoplay when banners are available
       const banners = this.banners();

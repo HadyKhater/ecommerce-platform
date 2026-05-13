@@ -17,14 +17,16 @@ import { catchError, of, switchMap, tap } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
 import { CategoryService } from '../../../shared/services/category.service';
-import { Product, ProductRequest, Category } from '../../../shared/models/product.model';
+import { Product, ProductRequest, Category, ProductImage } from '../../../shared/models/product.model';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { PagedResponse } from '../../../shared/models/product.model';
 
 @Component({
   selector: 'app-product-form',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, NgClass],
+  imports: [ReactiveFormsModule, RouterLink, NgClass, FormsModule],
   templateUrl: './product-form.component.html',
   styleUrls: ['./product-form.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +46,13 @@ export class ProductFormComponent {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly loadingProduct = signal(false);
+
+  /** Image management signals */
+  readonly productImages = signal<ProductImage[]>([]);
+  readonly imageLoadingId = signal<string | null>(null);
+  readonly newImageUrl = signal('');
+  readonly imageError = signal<string | null>(null);
+  readonly imageAdding = signal(false);
 
   /** Categories for the dropdown */
   readonly categories = toSignal(
@@ -101,6 +110,8 @@ export class ProductFormComponent {
             active: product.active,
           });
           this.loadingProduct.set(false);
+          // Load images from product_images table
+          this.loadProductImages(id);
         }),
         catchError((err: unknown) => {
           const message =
@@ -111,6 +122,112 @@ export class ProductFormComponent {
         }),
       )
       .subscribe();
+  }
+
+  private loadProductImages(productId: string): void {
+    this.productService.getProductImages(productId).subscribe({
+      next: (images) => this.productImages.set(images),
+      error: (err) => console.error('Failed to load product images', err)
+    });
+  }
+
+  addImage(): void {
+    const url = this.newImageUrl().trim();
+    if (!url) return;
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      this.imageError.set('URL must start with http:// or https://');
+      return;
+    }
+
+    const productId = this.editId();
+    if (!productId) return;
+
+    this.imageAdding.set(true);
+    this.imageError.set(null);
+
+    const request = {
+      imageUrl: url,
+      displayOrder: this.productImages().length,
+      isPrimary: this.productImages().length === 0
+    };
+
+    this.productService.addProductImage(productId, request).subscribe({
+      next: (image) => {
+        this.productImages.update(images => [...images, image]);
+        this.newImageUrl.set('');
+        this.imageAdding.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to add image', err);
+        this.imageError.set('Failed to add image. Please try again.');
+        this.imageAdding.set(false);
+      }
+    });
+  }
+
+  deleteImage(imageId: string): void {
+    const productId = this.editId();
+    if (!productId || !confirm('Are you sure you want to delete this image?')) return;
+
+    this.imageLoadingId.set(imageId);
+    this.productService.deleteProductImage(productId, imageId).subscribe({
+      next: () => {
+        this.productImages.update(images => images.filter(img => img.id !== imageId));
+        this.imageLoadingId.set(null);
+      },
+      error: (err) => {
+        console.error('Failed to delete image', err);
+        this.imageLoadingId.set(null);
+      }
+    });
+  }
+
+  setPrimary(imageId: string): void {
+    const productId = this.editId();
+    if (!productId) return;
+
+    this.imageLoadingId.set(imageId);
+    this.productService.setPrimaryImage(productId, imageId).subscribe({
+      next: (updatedImage) => {
+        this.productImages.update(images => 
+          images.map(img => ({
+            ...img,
+            isPrimary: img.id === imageId
+          }))
+        );
+        this.imageLoadingId.set(null);
+      },
+      error: (err) => {
+        console.error('Failed to set primary image', err);
+        this.imageLoadingId.set(null);
+      }
+    });
+  }
+
+  moveUp(index: number): void {
+    if (index === 0) return;
+    this.swapImages(index, index - 1);
+  }
+
+  moveDown(index: number): void {
+    if (index === this.productImages().length - 1) return;
+    this.swapImages(index, index + 1);
+  }
+
+  private swapImages(idx1: number, idx2: number): void {
+    const productId = this.editId();
+    if (!productId) return;
+
+    const images = [...this.productImages()];
+    [images[idx1], images[idx2]] = [images[idx2], images[idx1]];
+    
+    const imageIds = images.map(img => img.id);
+    
+    this.productService.reorderProductImages(productId, imageIds).subscribe({
+      next: (updatedImages) => this.productImages.set(updatedImages),
+      error: (err) => console.error('Failed to reorder images', err)
+    });
   }
 
   /** Convert comma-separated string to string array */

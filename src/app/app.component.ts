@@ -5,6 +5,7 @@ import { NgClass } from '@angular/common';
 
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
 import { FooterComponent } from './shared/components/footer/footer.component';
+import { AuthService } from './shared/services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ import { FooterComponent } from './shared/components/footer/footer.component';
 })
 export class AppComponent implements OnInit {
   private readonly router = inject(Router);
+  readonly authService = inject(AuthService);
 
   /** Whether the current route is an admin route (no public navbar/footer) */
   isAdminRoute = false;

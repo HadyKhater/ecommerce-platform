@@ -8,6 +8,8 @@ export interface OrderRequest {
   shippingAddress: string;
   currency: string;
   userEmail?: string;
+  promoCode?: string;
+  discountAmount?: number;
 }
 
 export interface OrderItemResponse {

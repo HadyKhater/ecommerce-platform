@@ -12,8 +12,12 @@ export interface Promotion {
   endDate: string;
   active: boolean;
   usageLimit?: number;
+  perUserLimit?: number;
   usageCount: number;
+  userUsageCount: number;
   applicableToAll: boolean;
+  categoryIds?: string[];
+  categoryNames?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -29,12 +33,17 @@ export interface PromotionRequest {
   endDate: string;
   active: boolean;
   usageLimit?: number;
+  perUserLimit?: number;
   applicableToAll: boolean;
+  categoryIds?: string[];
 }
 
 export interface ValidatePromoCodeRequest {
   code: string;
   orderAmount: number;
+  userId?: string;
+  userEmail?: string;
+  cartCategoryIds?: string[];
 }
 
 export interface ValidatePromoCodeResponse {

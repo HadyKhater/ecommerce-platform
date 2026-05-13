@@ -11,6 +11,7 @@ export interface CartItemResponse {
   imageUrl: string | null;
   quantity: number;
   totalPrice: number;
+  categoryId?: string;
 }
 
 /** Response DTO for cart details from backend. */

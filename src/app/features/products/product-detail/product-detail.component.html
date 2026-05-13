@@ -50,7 +50,7 @@
              (touchstart)="onTouchStart($event)"
              (touchend)="onTouchEnd($event)">
           <!-- Navigation arrows (visible on hover/desktop) -->
-          @if (product.imageUrls && product.imageUrls.length > 1) {
+          @if ((productImages().length > 1) || (product.imageUrls && product.imageUrls.length > 1)) {
             <button
               type="button"
               (click)="prevImage(); $event.stopPropagation()"
@@ -98,46 +98,76 @@
           }
 
           <!-- Mobile pagination dots -->
-          @if (product.imageUrls && product.imageUrls.length > 1) {
+          @if ((productImages().length > 1) || (product.imageUrls && product.imageUrls.length > 1)) {
             <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:hidden">
-              @for (img of product.imageUrls; track img; let i = $index) {
-                <button
-                  type="button"
-                  (click)="selectImage(i); $event.stopPropagation()"
-                  class="w-2 h-2 rounded-full transition-all"
-                  [class]="selectedImageIndex() === i ? 'bg-white w-4' : 'bg-white/50'"
-                  [attr.aria-label]="'Go to image ' + (i + 1)"
-                ></button>
+              @if (productImages().length > 0) {
+                @for (img of productImages(); track img.id; let i = $index) {
+                  <button
+                    type="button"
+                    (click)="selectImage(i); $event.stopPropagation()"
+                    class="w-2 h-2 rounded-full transition-all"
+                    [class]="selectedImageIndex() === i ? 'bg-white w-4' : 'bg-white/50'"
+                    [attr.aria-label]="'Go to image ' + (i + 1)"
+                  ></button>
+                }
+              } @else {
+                @for (img of product.imageUrls; track img; let i = $index) {
+                  <button
+                    type="button"
+                    (click)="selectImage(i); $event.stopPropagation()"
+                    class="w-2 h-2 rounded-full transition-all"
+                    [class]="selectedImageIndex() === i ? 'bg-white w-4' : 'bg-white/50'"
+                    [attr.aria-label]="'Go to image ' + (i + 1)"
+                  ></button>
+                }
               }
             </div>
           }
         </div>
 
         <!-- Thumbnails (desktop) -->
-        @if (product.imageUrls && product.imageUrls.length > 1) {
+        @if ((productImages().length > 1) || (product.imageUrls && product.imageUrls.length > 1)) {
           <div class="hidden sm:flex gap-2 overflow-x-auto pb-2">
-            @for (img of product.imageUrls; track img; let i = $index) {
-              <button
-                type="button"
-                class="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800 transition-all"
-                [ngClass]="selectedImageIndex() === i ? 'ring-2 ring-indigo-500' : 'opacity-70 hover:opacity-100'"
-                (click)="selectImage(i)"
-              >
-                <img
-                  [src]="img"
-                  [alt]="product.name + ' thumbnail ' + (i + 1)"
-                  class="h-full w-full object-cover"
-                  (error)="onImgError($event)"
-                />
-              </button>
+            @if (productImages().length > 0) {
+              @for (img of productImages(); track img.id; let i = $index) {
+                <button
+                  type="button"
+                  class="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800 transition-all"
+                  [ngClass]="selectedImageIndex() === i ? 'ring-2 ring-indigo-500' : 'opacity-70 hover:opacity-100'"
+                  (click)="selectImage(i)"
+                >
+                  <img
+                    [src]="img.imageUrl"
+                    [alt]="product.name + ' thumbnail ' + (i + 1)"
+                    class="h-full w-full object-cover"
+                    (error)="onImgError($event)"
+                  />
+                </button>
+              }
+            } @else {
+              @for (img of product.imageUrls; track img; let i = $index) {
+                <button
+                  type="button"
+                  class="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-slate-800 transition-all"
+                  [ngClass]="selectedImageIndex() === i ? 'ring-2 ring-indigo-500' : 'opacity-70 hover:opacity-100'"
+                  (click)="selectImage(i)"
+                >
+                  <img
+                    [src]="img"
+                    [alt]="product.name + ' thumbnail ' + (i + 1)"
+                    class="h-full w-full object-cover"
+                    (error)="onImgError($event)"
+                  />
+                </button>
+              }
             }
           </div>
         }
 
         <!-- Mobile image counter -->
-        @if (product.imageUrls && product.imageUrls.length > 1) {
+        @if ((productImages().length > 1) || (product.imageUrls && product.imageUrls.length > 1)) {
           <div class="sm:hidden text-center text-sm text-slate-400">
-            Image {{ selectedImageIndex() + 1 }} of {{ product.imageUrls.length }}
+            Image {{ selectedImageIndex() + 1 }} of {{ productImages().length || product.imageUrls.length }}
           </div>
         }
       </div>
@@ -290,22 +320,62 @@
       </div>
     </div>
 
-    <!-- You might also like section (deferred) -->
-    @defer (on viewport) {
+    <!-- Related products section -->
+    @if (relatedProducts().length > 0) {
       <div class="mt-16 border-t border-slate-800 pt-12">
-        <h2 class="mb-8 text-xl font-bold text-slate-100">You might also like</h2>
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          @for (i of [1,2,3,4]; track i) {
-            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800/50 p-3">
-              <div class="aspect-[4/3] rounded-lg bg-slate-700/50"></div>
-              <div class="mt-3 h-4 w-3/4 rounded bg-slate-700/50"></div>
-              <div class="mt-2 h-4 w-1/2 rounded bg-slate-700/50"></div>
-            </div>
+        <div class="flex items-center justify-between mb-8">
+          <h2 class="text-xl font-bold text-slate-100">You might also like</h2>
+          <a routerLink="/products" [queryParams]="{ categoryId: product.categoryId }" class="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+            View all
+          </a>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-6 sm:grid-cols-4">
+          @for (related of relatedProducts(); track related.id) {
+            <a
+              [routerLink]="['/products', related.id]"
+              class="group block relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-3 transition-all duration-300 hover:border-indigo-500/50 hover:bg-slate-800/60 hover:shadow-2xl hover:shadow-indigo-500/10"
+            >
+              <!-- Image Container -->
+              <div class="relative aspect-[4/5] overflow-hidden rounded-xl bg-slate-800">
+                <img
+                  [src]="getFirstImage(related)"
+                  [alt]="related.name"
+                  class="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                  (error)="onImgError($event)"
+                />
+                
+                <!-- Quick Look Overlay (subtle) -->
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-white/90">
+                    <span>View Details</span>
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="mt-4 space-y-2">
+                <h3 class="truncate text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                  {{ related.name }}
+                </h3>
+                <div class="flex items-center justify-between">
+                  <p class="text-base font-bold text-indigo-400">
+                    EGP {{ related.price | number:'1.2-2' }}
+                  </p>
+                  @if (related.categoryName) {
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+                      {{ related.categoryName }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </a>
           }
         </div>
       </div>
-    } @placeholder {
-      <div class="mt-16 h-64"></div>
     }
   }
 </section>

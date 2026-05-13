@@ -84,7 +84,8 @@ export class LoginComponent {
       )
       .subscribe({
         next: () => {
-          this.router.navigate(['/']);
+          const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
+          this.router.navigateByUrl(returnUrl);
         },
         error: (error: unknown) => {
           this.errorMessage.set(this.describeError(error));

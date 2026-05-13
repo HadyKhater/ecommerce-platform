@@ -238,10 +238,8 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
 
 
-          if (!isAuthUrl) {
-
+          if (!isAuthUrl && authService.isLoggedIn()) {
             authService.logout();
-
           }
 
 

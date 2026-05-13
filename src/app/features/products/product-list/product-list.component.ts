@@ -7,13 +7,14 @@ import {
   PLATFORM_ID,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DecimalPipe, isPlatformBrowser, NgClass, NgOptimizedImage } from '@angular/common';
 import { catchError, debounceTime, map, of, startWith, switchMap, combineLatest, tap } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
 import { CategoryService } from '../../../shared/services/category.service';
 import { CartService } from '../../../shared/services/cart.service';
+import { AuthService } from '../../../shared/services/auth.service';
 import { InventoryService } from '../../../shared/services/inventory.service';
 import { Product, ProductPage, Category } from '../../../shared/models/product.model';
 import { InventoryResponse } from '../../../shared/models/inventory.model';
@@ -28,10 +29,12 @@ export interface ProductListVm {
   error: string | null;
 }
 
+import { ProductCardComponent } from '../product-card/product-card.component';
+
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [DecimalPipe, NgOptimizedImage, RouterLink, NgClass],
+  imports: [DecimalPipe, RouterLink, NgClass, ProductCardComponent],
   templateUrl: './product-list.component.html',
   styleUrls: ['./product-list.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -41,26 +44,32 @@ export class ProductListComponent implements OnInit {
   private readonly categoryService = inject(CategoryService);
   private readonly cartService = inject(CartService);
   private readonly inventoryService = inject(InventoryService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
 
   /** Inventory map for live stock data - authoritative source */
   readonly inventoryMap = signal<Map<string, InventoryResponse | null>>(new Map());
 
-  /** Page settings - load all products for client-side grouping */
+  /** Page settings */
   readonly currentPage = signal(0);
-  readonly pageSize = signal(100); // Load more for proper grouping
+  readonly pageSize = signal(12); // Standard page size for grid
 
-  /** Search signal with debounced API calls */
+  /** Search & Filter signals */
   readonly searchKeyword = signal('');
-  readonly selectedCategoryId = signal<string>('');
-  readonly minPrice = signal<number | undefined>(undefined);
-  readonly maxPrice = signal<number | undefined>(undefined);
+  readonly selectedCategory = signal<string>('');
+  readonly minPrice = signal<number>(0);
+  readonly maxPrice = signal<number>(0);
+  maxPriceCap = 0;
+  readonly availabilityFilter = signal<'all' | 'in-stock' | 'out-of-stock'>('all');
+  readonly viewMode = signal<'grid' | 'list'>('grid');
+  readonly sortBy = signal<'featured' | 'price-asc' | 'price-desc' | 'newest'>('featured');
 
-  /** Transition state for smooth category/search changes */
+  /** Transition state for smooth changes */
   readonly transitioning = signal(false);
 
-  /** Categories for filter pills */
+  /** Categories for sidebar */
   readonly categories = toSignal(
     this.categoryService.getCategories().pipe(
       catchError(() => of([] as Category[])),
@@ -73,85 +82,50 @@ export class ProductListComponent implements OnInit {
     debounceTime(300),
   );
 
-  private readonly categoryId$ = toObservable(this.selectedCategoryId);
+  private readonly categoryId$ = toObservable(this.selectedCategory);
   private readonly minPrice$ = toObservable(this.minPrice);
   private readonly maxPrice$ = toObservable(this.maxPrice);
   private readonly page$ = toObservable(this.currentPage);
 
-  /** Track previous filter state to detect category/search changes vs initial load */
-  private previousFilters = { categoryId: '', keyword: '' };
-  private productsLoaded = false;
-  private currentProducts: Product[] = [];
-  private currentTotalCount = 0;
-  private currentPageNum = 0;
-
-  /** Target category for scroll from query params */
-  private targetCategory: string | null = null;
-
-  /** Combined trigger stream for all filter changes */
-  private readonly filterTrigger$ = combineLatest([
+  /** Combined trigger stream for API fetching */
+  private readonly fetchTrigger$ = combineLatest([
     this.searchKeyword$,
     this.categoryId$,
-    this.minPrice$,
-    this.maxPrice$,
     this.page$,
   ]).pipe(
-    map(([keyword, categoryId, minPrice, maxPrice, page]) => ({
+    map(([keyword, categoryId, page]) => ({
       keyword: keyword.trim() || undefined,
       categoryId: categoryId || undefined,
-      minPrice,
-      maxPrice,
       page,
     })),
   );
 
-  private readonly products$ = this.filterTrigger$.pipe(
+  private readonly products$ = this.fetchTrigger$.pipe(
     switchMap((filters) => {
-      const hasFilters = filters.keyword || filters.categoryId || filters.minPrice !== undefined || filters.maxPrice !== undefined;
-
-      // Check if this is a category or search change (not initial load)
-      const isCategoryChange = filters.categoryId !== this.previousFilters.categoryId;
-      const isSearchChange = filters.keyword !== this.previousFilters.keyword;
-      const isFilterChangeOnly = (isCategoryChange || isSearchChange) && this.productsLoaded;
-
-      // Update tracking for next time
-      this.previousFilters = {
-        categoryId: filters.categoryId || '',
-        keyword: filters.keyword || ''
-      };
-
-      // If it's a filter change and we already have products, use smooth transition
-      if (isFilterChangeOnly) {
-        this.transitioning.set(true);
-      }
-
-      const fetch$ = hasFilters
+      this.transitioning.set(true);
+      
+      const fetch$ = filters.keyword || filters.categoryId
         ? this.productService.searchProducts({
-            page: 0,
+            page: filters.page,
             pageSize: this.pageSize(),
             keyword: filters.keyword,
             categoryId: filters.categoryId,
-            minPrice: filters.minPrice,
-            maxPrice: filters.maxPrice,
           })
-        : this.productService.getProducts(0, this.pageSize());
+        : this.productService.getProducts(filters.page, this.pageSize());
 
       return fetch$.pipe(
         tap((res: ProductPage) => {
-          // Load inventory for all products after fetching
           this.loadInventoryForProducts(res.content);
+          if (res.content.length > 0) {
+            const highest = Math.ceil(
+              Math.max(...res.content.map(p => p.price ?? 0))
+            );
+            this.maxPrice.set(highest);
+            this.maxPriceCap = highest;
+          }
         }),
         map((res: ProductPage): ProductListVm => {
-          this.productsLoaded = true;
-          this.currentProducts = res.content;
-          this.currentTotalCount = res.totalElements;
-          this.currentPageNum = res.page;
-          // Smooth fade-in after filter change
-          if (isFilterChangeOnly) {
-            setTimeout(() => this.transitioning.set(false), 50);
-          }
-          // Scroll to target category after products render
-          setTimeout(() => this.scrollToTargetCategory(), 100);
+          setTimeout(() => this.transitioning.set(false), 50);
           return {
             products: res.content,
             totalCount: res.totalElements,
@@ -161,28 +135,16 @@ export class ProductListComponent implements OnInit {
             error: null,
           };
         }),
-        startWith(isFilterChangeOnly
-          ? {
-              // Keep existing products visible during transition, don't show skeleton
-              products: this.currentProducts,
-              totalCount: this.currentTotalCount,
-              page: this.currentPageNum,
-              pageSize: this.pageSize(),
-              loading: false, // Don't show skeleton on filter change
-              error: null,
-            }
-          : {
-              products: [] as Product[],
-              totalCount: 0,
-              page: 0,
-              pageSize: this.pageSize(),
-              loading: true,
-              error: null,
-            }
-        ),
+        startWith({
+          products: [] as Product[],
+          totalCount: 0,
+          page: 0,
+          pageSize: this.pageSize(),
+          loading: true,
+          error: null,
+        } as ProductListVm),
         catchError((err: unknown) => {
-          const message =
-            err instanceof Error ? err.message : 'Failed to load products.';
+          const message = err instanceof Error ? err.message : 'Failed to load products.';
           this.transitioning.set(false);
           return of({
             products: [] as Product[],
@@ -197,90 +159,71 @@ export class ProductListComponent implements OnInit {
     }),
   );
 
-  /** Convert observable to signal for template use */
+  /** Main VM signal */
   readonly vm = toSignal(this.products$, {
     initialValue: {
       products: [] as Product[],
       totalCount: 0,
       page: 0,
-      pageSize: 100,
+      pageSize: 12,
       loading: true,
       error: null as string | null,
     } satisfies ProductListVm,
   });
 
+  /** Computed: Apply client-side filters (Price Range, Availability) and Sorting */
+  readonly filteredProducts = computed(() => {
+    let result = [...this.vm().products];
+
+    // 0. Category Filter
+    if (this.selectedCategory()) {
+      result = result.filter(p => !this.selectedCategory() || p.categoryId === this.selectedCategory());
+    }
+
+    // 1. Price Range Filter
+    result = result.filter(p => p.price >= this.minPrice() && p.price <= this.maxPrice());
+
+    // 2. Availability Filter
+    if (this.availabilityFilter() !== 'all') {
+      result = result.filter(p => {
+        const stock = this.getAvailableStock(p);
+        return this.availabilityFilter() === 'in-stock' ? stock > 0 : stock === 0;
+      });
+    }
+
+    // 3. Sort By
+    switch (this.sortBy()) {
+      case 'price-asc':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-desc':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'newest':
+        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      // 'featured' is default API order
+    }
+
+    return result;
+  });
+
+  /** Computed: Total count after client-side filtering */
+  readonly filteredCount = computed(() => this.filteredProducts().length);
+
   /** Computed: Check if any filter is active */
   readonly hasActiveFilters = computed(() => {
     return this.searchKeyword().trim().length > 0 ||
-      this.selectedCategoryId() !== '' ||
-      this.minPrice() !== undefined ||
-      this.maxPrice() !== undefined;
-  });
-
-  /** Computed: Check if we're in search mode */
-  readonly isSearchMode = computed(() => {
-    return this.searchKeyword().trim().length > 0;
-  });
-
-  /** Computed: Check if a specific category is selected */
-  readonly isCategoryFilterActive = computed(() => {
-    return this.selectedCategoryId() !== '';
-  });
-
-  /** Computed: Group products by category for sectioned display */
-  readonly groupedProducts = computed(() => {
-    const groups = new Map<string, Product[]>();
-    this.vm().products.forEach((p: Product) => {
-      const cat = p.categoryName ?? 'Other';
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(p);
-    });
-    return Array.from(groups.entries())
-      .map(([name, products]) => ({ name, products }));
-  });
-
-  /** Computed: Get latest arrivals (4 most recent) */
-  readonly latestArrivals = computed(() => {
-    return [...this.vm().products]
-      .sort((a: Product, b: Product) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 4);
-  });
-
-  /** Get category name by ID for display */
-  getCategoryNameById(categoryId: string): string {
-    const cat = this.categories().find(c => c.id === categoryId);
-    return cat?.name ?? 'Products';
-  }
-
-  /** Computed: Get selected category name */
-  readonly selectedCategoryName = computed(() => {
-    return this.getCategoryNameById(this.selectedCategoryId());
+      this.selectedCategory() !== '' ||
+      this.minPrice() !== 0 ||
+      this.maxPrice() !== this.maxPriceCap ||
+      this.availabilityFilter() !== 'all';
   });
 
   trackByProductId(index: number, product: Product): string {
     return product.id;
   }
 
-  trackByCategoryName(index: number, group: { name: string; products: Product[] }): string {
-    return group.name;
-  }
-
-  /** Get first image URL from product, handling both string[] and single string */
-  getFirstImage(product: Product): string {
-    if (product.imageUrls && product.imageUrls.length > 0) {
-      return product.imageUrls[0];
-    }
-    // Fallback placeholder SVG
-    return 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc1NTY5IiBzdHJva2Utd2lkdGg9IjEiPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcng9IjQiIGZpbGw9IiMxZTI5M2IiLz48cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Ik00IDE2bDQuNTg2LTQuNTg2YTIgMiAwIDAxMi44MjggMEwxNiAxNm0tMi0ybDEuNTg2LTEuNTg2YTIgMiAwIDAxMi44MjggMEwyMCAxNG0tNi02aC4wMU02IDIwaDEyYTIgMiAwIDAwMi0yVjZhMiAyIDAgMDAtMi0ySDZhMiAyIDAgMDAtMiAydjEyYTIgMiAwIDAwMiAyeiIvPjwvc3ZnPg==';
-  }
-
-  /** Handle image load error by setting fallback */
-  onImgError(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    img.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNDc1NTY5IiBzdHJva2Utd2lkdGg9IjEiPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgcng9IjQiIGZpbGw9IiMxZTI5M2IiLz48cGF0aCBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Ik00IDE2bDQuNTg2LTQuNTg2YTIgMiAwIDAxMi44MjggMEwxNiAxNm0tMi0ybDEuNTg2LTEuNTg2YTIgMiAwIDAxMi44MjggMEwyMCAxNG0tNi02aC4wMU02IDIwaDEyYTIgMiAwIDAwMi0yVjZhMiAyIDAgMDAtMi0ySDZhMiAyIDAgMDAtMiAydjEyYTIgMiAwIDAwMiAyeiIvPjwvc3ZnPg==';
-  }
-
-  /** Check if product was created within last 7 days */
   isNew(product: Product): boolean {
     const created = new Date(product.createdAt);
     const now = new Date();
@@ -289,98 +232,47 @@ export class ProductListComponent implements OnInit {
     return diffDays <= 7;
   }
 
-  /** Select a category by ID */
   selectCategory(categoryId: string): void {
-    this.selectedCategoryId.set(categoryId);
+    this.selectedCategory.set(categoryId);
     this.currentPage.set(0);
   }
 
-  /** Select category by name (used for "See all" links) */
-  selectCategoryByName(categoryName: string): void {
-    const cat = this.categories().find(c => c.name === categoryName);
-    if (cat) {
-      this.selectedCategoryId.set(cat.id);
-    }
-  }
-
-  /** Clear all filters */
   clearFilters(): void {
     this.searchKeyword.set('');
-    this.selectedCategoryId.set('');
-    this.minPrice.set(undefined);
-    this.maxPrice.set(undefined);
-    this.currentPage.set(0);
-  }
-
-  /** Handle min price input */
-  onMinPriceInput(event: Event): void {
-    const val = (event.target as HTMLInputElement).value;
-    this.minPrice.set(val ? +val : undefined);
-    this.currentPage.set(0);
-  }
-
-  /** Handle max price input */
-  onMaxPriceInput(event: Event): void {
-    const val = (event.target as HTMLInputElement).value;
-    this.maxPrice.set(val ? +val : undefined);
+    this.selectedCategory.set('');
+    this.minPrice.set(0);
+    this.maxPrice.set(this.maxPriceCap);
+    this.availabilityFilter.set('all');
+    this.sortBy.set('featured');
     this.currentPage.set(0);
   }
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
-      this.targetCategory = params['category'] || null;
+      if (params['category']) {
+        this.selectedCategory.set(params['category']);
+      }
     });
   }
 
-  scrollToTargetCategory(): void {
-    if (this.targetCategory && isPlatformBrowser(this.platformId)) {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-
-      setTimeout(() => {
-        const element = document.getElementById(
-          'category-' + this.targetCategory
-        );
-        if (element) {
-          const navbarHeight = 80;
-          const elementTop = element.getBoundingClientRect().top
-                             + window.scrollY;
-          const targetPosition = elementTop - navbarHeight - 16;
-
-          // Smooth manual scroll (slow and simple)
-          const startPosition = 0;
-          const distance = targetPosition - startPosition;
-          const duration = 1200; // 1.2 seconds — slow and clean
-          let startTime: number | null = null;
-
-          function easeInOutQuad(t: number): number {
-            return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-          }
-
-          function step(currentTime: number): void {
-            if (!startTime) startTime = currentTime;
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            window.scrollTo(0, startPosition + distance * easeInOutQuad(progress));
-            if (elapsed < duration) requestAnimationFrame(step);
-          }
-
-          requestAnimationFrame(step);
-        }
-        this.targetCategory = null;
-      }, 300);
-    }
-  }
-
-  /** Quick add product to cart from product card */
-  quickAddToCart(product: Product, event: Event): void {
-    event.stopPropagation();
-    event.preventDefault();
-
-    // Use inventory data as authoritative source
+  quickAddToCart(product: Product): void {
     const inventory = this.getInventory(product.id);
     const available = inventory?.quantityAvailable ?? 0;
 
     if (available <= 0) return;
+
+    if (!this.authService.isLoggedIn()) {
+      sessionStorage.setItem('pending_action', JSON.stringify({
+        type: 'ADD_TO_CART',
+        productId: product.id,
+        quantity: 1,
+        productName: product.name
+      }));
+      this.router.navigate(['/login'], {
+        queryParams: { returnUrl: this.router.url },
+      });
+      return;
+    }
 
     this.cartService.addToCart({
       productId: product.id,
@@ -393,11 +285,6 @@ export class ProductListComponent implements OnInit {
     });
   }
 
-  /**
-   * Load inventory data for all products in the list.
-   * Uses batch fetching to get all inventory in ONE request instead of N requests.
-   * This eliminates console noise from individual 404 errors.
-   */
   private loadInventoryForProducts(products: Product[]): void {
     if (products.length === 0) return;
 
@@ -405,14 +292,11 @@ export class ProductListComponent implements OnInit {
       catchError(() => of([] as InventoryResponse[])),
     ).subscribe((allInventory) => {
       const currentMap = new Map<string, InventoryResponse | null>();
-      
-      // Create a lookup map from the batch response
       const inventoryLookup = new Map<string, InventoryResponse>();
       allInventory.forEach((inv: InventoryResponse) => {
         inventoryLookup.set(inv.productId, inv);
       });
 
-      // Map each product to its inventory (or null if not initialized)
       products.forEach((product) => {
         const inventory = inventoryLookup.get(product.id) ?? null;
         currentMap.set(product.id, inventory);
@@ -422,38 +306,37 @@ export class ProductListComponent implements OnInit {
     });
   }
 
-  /**
-   * Get inventory for a specific product.
-   * Returns null if no inventory data available.
-   */
   getInventory(productId: string): InventoryResponse | null {
     return this.inventoryMap().get(productId) ?? null;
   }
 
-  /**
-   * Get available stock quantity from inventory (authoritative source).
-   * Returns 0 if inventory not loaded.
-   */
   getAvailableStock(product: Product): number {
     const inventory = this.getInventory(product.id);
     return inventory?.quantityAvailable ?? 0;
   }
 
-  /**
-   * Check if product is out of stock based on inventory data.
-   */
-  isOutOfStock(product: Product): boolean {
-    return this.getAvailableStock(product) === 0;
+  /** Pagination Methods */
+  nextPage(): void {
+    if ((this.currentPage() + 1) * this.pageSize() < this.vm().totalCount) {
+      this.currentPage.update(p => p + 1);
+    }
   }
 
-  /**
-   * Check if product has low stock based on inventory data.
-   */
-  isLowStock(product: Product): boolean {
-    const inventory = this.getInventory(product.id);
-    const available = inventory?.quantityAvailable ?? 0;
-    const threshold = inventory?.lowStockThreshold ?? 10;
-    return available > 0 && available <= threshold;
+  prevPage(): void {
+    if (this.currentPage() > 0) {
+      this.currentPage.update(p => p - 1);
+    }
+  }
+
+  goToPage(page: number): void {
+    this.currentPage.set(page);
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.vm().totalCount / this.pageSize());
+  }
+
+  get pages(): number[] {
+    return Array.from({ length: this.totalPages }, (_, i) => i);
   }
 }
-

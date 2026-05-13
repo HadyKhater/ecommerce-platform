@@ -3,19 +3,20 @@ import {
   Component,
   computed,
   inject,
+  OnInit,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { ProductService } from '../../../shared/services/product.service';
 import { CartService } from '../../../shared/services/cart.service';
+import { AuthService } from '../../../shared/services/auth.service';
 import { InventoryService } from '../../../shared/services/inventory.service';
-import { Product } from '../../../shared/models/product.model';
+import { Product, ProductImage } from '../../../shared/models/product.model';
 import { InventoryResponse } from '../../../shared/models/inventory.model';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
 
 export interface ProductDetailVm {
   product: Product | null;
@@ -32,17 +33,33 @@ export interface ProductDetailVm {
   styleUrls: ['./product-detail.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductDetailComponent {
+export class ProductDetailComponent implements OnInit {
   private readonly productService = inject(ProductService);
   private readonly cartService = inject(CartService);
   private readonly inventoryService = inject(InventoryService);
+  private readonly authService = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   /** Product ID from route params */
   readonly productId = signal<string>('');
 
   /** Selected image index for thumbnail gallery */
   readonly selectedImageIndex = signal<number>(0);
+
+  /** Product images signal */
+  readonly productImages = signal<ProductImage[]>([]);
+
+  /** Selected image computed signal */
+  readonly selectedImage = computed(() => {
+    const images = this.productImages();
+    if (images.length > 0) {
+      return images[this.selectedImageIndex()]?.imageUrl ?? images[0].imageUrl;
+    }
+    // Fallback to legacy imageUrls
+    const legacyUrls = this.vm().product?.imageUrls ?? [];
+    return legacyUrls[this.selectedImageIndex()] ?? this.getFirstImage(this.vm().product);
+  });
 
   /** Quantity for add to cart */
   readonly quantity = signal<number>(1);
@@ -68,10 +85,32 @@ export class ProductDetailComponent {
   /** Inventory data for the current product */
   readonly inventory = signal<InventoryResponse | null>(null);
 
-  constructor() {
-    // Read initial route param
-    const id = this.route.snapshot.paramMap.get('id') ?? '';
+  /** Related products signal */
+  readonly relatedProducts = signal<Product[]>([]);
+
+  constructor() {}
+
+  ngOnInit(): void {
+    this.route.paramMap.subscribe((params) => {
+      const id = params.get('id');
+      if (id) {
+        this.loadProduct(id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+  }
+
+  /**
+   * Loads product data by updating the productId signal.
+   * This triggers the reactive product$ observable pipeline.
+   */
+  private loadProduct(id: string): void {
+    // Reset states before fetching
     this.productId.set(id);
+    this.relatedProducts.set([]);
+    this.selectedImageIndex.set(0);
+    this.quantity.set(1);
+    this.addToCartSuccess.set(false);
   }
 
   /** Observable stream that fetches a single product */
@@ -87,6 +126,14 @@ export class ProductDetailComponent {
       }
       return this.productService.getProductById(id).pipe(
         switchMap((product: Product) => {
+          // Load images from product_images table
+          this.productImages.set(product.images ?? []);
+
+          // Load related products
+          if (product.categoryId) {
+            this.loadRelatedProducts(product.categoryId, product.id);
+          }
+          
           // Load inventory for this product
           return this.inventoryService.getInventoryByProductId(id).pipe(
             map((inventory: InventoryResponse | null) => ({
@@ -153,24 +200,30 @@ export class ProductDetailComponent {
   });
 
   /** Check if the product has images */
-  readonly hasImages = computed(
-    () => (this.vm().product?.imageUrls?.length ?? 0) > 0,
-  );
-
-  /** Get selected image URL or first image */
-  readonly selectedImageUrl = computed(() => {
+  readonly hasImages = computed(() => {
     const product = this.vm().product;
-    if (!product?.imageUrls?.length) {
-      return this.getFallbackImage();
-    }
-    return product.imageUrls[this.selectedImageIndex()] ?? product.imageUrls[0];
+    return (this.productImages().length > 0) || (product?.imageUrls?.length ?? 0) > 0;
   });
 
+  /** Get selected image URL or first image */
+  readonly selectedImageUrl = computed(() => this.selectedImage());
+
   /** Get first image URL from product */
+  /** Get first image URL from product, prioritizing primary image from new table */
   getFirstImage(product: Product | null): string {
-    if (product?.imageUrls && product.imageUrls.length > 0) {
+    if (!product) return this.getFallbackImage();
+
+    // 1. Try new images table
+    if (product.images && product.images.length > 0) {
+      const primary = product.images.find((img) => img.isPrimary) || product.images[0];
+      return primary.imageUrl;
+    }
+
+    // 2. Fallback to legacy imageUrls
+    if (product.imageUrls && product.imageUrls.length > 0) {
       return product.imageUrls[0];
     }
+
     return this.getFallbackImage();
   }
 
@@ -193,20 +246,20 @@ export class ProductDetailComponent {
 
   /** Navigate to previous image */
   prevImage(): void {
-    const product = this.vm().product;
-    if (!product?.imageUrls?.length) return;
+    const imagesCount = this.productImages().length || this.vm().product?.imageUrls?.length || 0;
+    if (imagesCount === 0) return;
     const currentIndex = this.selectedImageIndex();
-    const newIndex = (currentIndex - 1 + product.imageUrls.length) % product.imageUrls.length;
+    const newIndex = (currentIndex - 1 + imagesCount) % imagesCount;
     this.selectedImageIndex.set(newIndex);
     this.isZoomed.set(false);
   }
 
   /** Navigate to next image */
   nextImage(): void {
-    const product = this.vm().product;
-    if (!product?.imageUrls?.length) return;
+    const imagesCount = this.productImages().length || this.vm().product?.imageUrls?.length || 0;
+    if (imagesCount === 0) return;
     const currentIndex = this.selectedImageIndex();
-    const newIndex = (currentIndex + 1) % product.imageUrls.length;
+    const newIndex = (currentIndex + 1) % imagesCount;
     this.selectedImageIndex.set(newIndex);
     this.isZoomed.set(false);
   }
@@ -266,6 +319,19 @@ export class ProductDetailComponent {
     const product = this.vm().product;
     if (!product || this.addingToCart() || this.isOutOfStock()) return;
 
+    if (!this.authService.isLoggedIn()) {
+      sessionStorage.setItem('pending_action', JSON.stringify({
+        type: 'ADD_TO_CART',
+        productId: product.id,
+        quantity: this.quantity(),
+        productName: product.name
+      }));
+      this.router.navigate(['/login'], {
+        queryParams: { returnUrl: this.router.url },
+      });
+      return;
+    }
+
     this.addingToCart.set(true);
     this.addToCartSuccess.set(false);
 
@@ -289,5 +355,24 @@ export class ProductDetailComponent {
           this.addingToCart.set(false);
         },
       });
+  }
+
+  /** Load related products in the same category */
+  private loadRelatedProducts(categoryId: string, currentProductId: string): void {
+    this.productService
+      .searchProducts({
+        categoryId,
+        pageSize: 5,
+      })
+      .pipe(
+        map((page) =>
+          page.content.filter((p) => p.id !== currentProductId).slice(0, 4)
+        ),
+        catchError((err) => {
+          console.error('Failed to load related products:', err);
+          return of([]);
+        })
+      )
+      .subscribe((products) => this.relatedProducts.set(products));
   }
 }

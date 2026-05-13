@@ -5,7 +5,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { PaymentService } from '../../shared/services/payment.service';
 import { PaymentRequest, PaymentMethod } from '../../shared/models/payment.model';
 import { OrderService } from '../../shared/services/order.service';
-import { OrderResponse } from '../../shared/models/order.model';
+import { CartService } from '../../shared/services/cart.service';
+import { OrderResponse, OrderRequest } from '../../shared/models/order.model';
+import { CartResponse } from '../../shared/models/cart.model';
 import { DiscountService } from '../../core/services/discount.service';
 
 @Component({
@@ -20,6 +22,7 @@ export class PaymentComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly paymentService = inject(PaymentService);
   private readonly orderService = inject(OrderService);
+  private readonly cartService = inject(CartService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly discountService = inject(DiscountService);
@@ -27,6 +30,8 @@ export class PaymentComponent implements OnInit {
   paymentForm!: FormGroup;
   orderId = signal<string | null>(null);
   order = signal<OrderResponse | null>(null);
+  orderRequest = signal<OrderRequest | null>(null);
+  cart = signal<CartResponse | null>(null);
 
   // Discount computed from service (persists across page refresh)
   discountInfo = computed(() => this.discountService.discountInfo());
@@ -35,14 +40,14 @@ export class PaymentComponent implements OnInit {
   // Computed values
   discountAmount = computed(() => this.discountService.discountAmount());
   finalTotal = computed(() => {
-    const base = this.order()?.totalAmount ?? 0;
+    const base = this.order()?.totalAmount ?? this.cart()?.grandTotal ?? 0;
     const discount = this.discountAmount();
     return Math.max(0, base - discount);
   });
 
   // Order summary breakdown
   orderSummary = computed(() => {
-    const subtotal = this.order()?.totalAmount ?? 0;
+    const subtotal = this.order()?.totalAmount ?? this.cart()?.grandTotal ?? 0;
     const discount = this.discountAmount();
     const shipping = 0; // Free shipping
     return {
@@ -59,13 +64,35 @@ export class PaymentComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
+
+    // Check if we have an order request from checkout step
+    const state = history.state;
+    if (state && state.orderRequest) {
+      this.orderRequest.set(state.orderRequest);
+      this.loadCart();
+    }
+
     this.route.queryParams.subscribe(params => {
       const id = params['orderId'];
       if (id) {
         this.orderId.set(id);
         this.loadOrder(id);
-      } else {
+      } else if (!state.orderRequest) {
         this.router.navigate(['/cart']);
+      }
+    });
+  }
+
+  private loadCart(): void {
+    this.loading.set(true);
+    this.cartService.getCart().subscribe({
+      next: (cartData) => {
+        this.cart.set(cartData);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.error.set('Failed to load cart details.');
+        this.loading.set(false);
       }
     });
   }
@@ -114,7 +141,7 @@ export class PaymentComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.paymentForm.invalid || !this.order()) {
+    if (this.paymentForm.invalid || (!this.order() && !this.orderRequest())) {
       this.paymentForm.markAllAsTouched();
       return;
     }
@@ -122,10 +149,30 @@ export class PaymentComponent implements OnInit {
     this.submitting.set(true);
     this.error.set(null);
 
+    // If order is not yet created, create it first
+    if (!this.orderId() && this.orderRequest()) {
+      this.orderService.createOrder(this.orderRequest()!).subscribe({
+        next: (orderResponse) => {
+          this.orderId.set(orderResponse.id);
+          this.order.set(orderResponse);
+          this.processPayment();
+        },
+        error: (err) => {
+          this.error.set(err.error?.message || 'Failed to create order. Please try again.');
+          this.submitting.set(false);
+        }
+      });
+    } else {
+      this.processPayment();
+    }
+  }
+
+  private processPayment(): void {
+    const currentOrder = this.order()!;
     const request: PaymentRequest = {
       orderId: this.orderId()!,
       amount: this.finalTotal(),
-      currency: this.order()!.currency,
+      currency: currentOrder.currency,
       paymentMethod: 'CREDIT_CARD' as PaymentMethod,
       discountCode: this.discountInfo()?.code || undefined,
       discountAmount: this.discountAmount() > 0 ? this.discountAmount() : undefined
@@ -134,6 +181,8 @@ export class PaymentComponent implements OnInit {
     this.paymentService.processPayment(request).subscribe({
       next: (paymentResponse) => {
         this.submitting.set(false);
+        // Clear cart after successful payment
+        this.cartService.clearCart().subscribe();
         // Clear discount after successful payment
         this.discountService.clearDiscount();
         // On success redirect to Order Confirmation

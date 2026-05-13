@@ -65,4 +65,30 @@ export class ProductService {
   deleteProduct(id: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
+
+  // --- Product Image Methods ---
+
+  getProductImages(productId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/${productId}/images`);
+  }
+
+  addProductImage(productId: string, request: { imageUrl: string; displayOrder: number; isPrimary: boolean }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/${productId}/images`, request);
+  }
+
+  updateProductImage(productId: string, imageId: string, request: { imageUrl: string; displayOrder: number; isPrimary: boolean }): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/${productId}/images/${imageId}`, request);
+  }
+
+  deleteProductImage(productId: string, imageId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${productId}/images/${imageId}`);
+  }
+
+  setPrimaryImage(productId: string, imageId: string): Observable<any> {
+    return this.http.patch<any>(`${this.baseUrl}/${productId}/images/${imageId}/primary`, {});
+  }
+
+  reorderProductImages(productId: string, imageIds: string[]): Observable<any[]> {
+    return this.http.post<any[]>(`${this.baseUrl}/${productId}/images/reorder`, imageIds);
+  }
 }

@@ -1,11 +1,28 @@
+@if (authService.isInitialising()) {
+<div class="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950">
+  <div class="relative flex items-center justify-center">
+    <!-- Outer spinning ring -->
+    <div class="h-20 w-20 animate-spin rounded-full border-4 border-slate-800 border-t-indigo-500"></div>
+    <!-- Inner pulsing logo or dot -->
+    <div class="absolute h-10 w-10 animate-pulse rounded-full bg-indigo-500/20 flex items-center justify-center">
+      <div class="h-4 w-4 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+    </div>
+  </div>
+  <div class="mt-8 flex flex-col items-center gap-2">
+    <h2 class="text-xl font-semibold text-slate-100 tracking-tight">Initializing Storefront</h2>
+    <p class="text-sm text-slate-400 font-medium">Verifying your session...</p>
+  </div>
+</div>
+} @else {
 <main class="min-h-screen bg-dark text-slate-100 antialiased">
   @if (!isAdminRoute) {
-    <app-navbar />
+  <app-navbar />
   }
   <div [ngClass]="isAdminRoute ? '' : 'pt-16'">
     <router-outlet />
   </div>
   @if (!isAdminRoute) {
-    <app-footer />
+  <app-footer />
   }
 </main>
+}

@@ -170,17 +170,49 @@
             <label class="mb-1 block text-sm font-medium text-slate-300">Usage Limit</label>
             <input type="number" formControlName="usageLimit" class="input-dark" min="1" placeholder="Leave empty for unlimited" />
           </div>
-          <div class="flex items-center gap-4">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" formControlName="active" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
-              <span class="text-sm font-medium text-slate-300">Active</span>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-300">
+              Per-User Limit
             </label>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" formControlName="applicableToAll" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
-              <span class="text-sm font-medium text-slate-300">Apply to All</span>
-            </label>
+            <input type="number" formControlName="perUserLimit"
+              class="input-dark" min="1"
+              placeholder="Leave empty for unlimited" />
+            <p class="mt-1 text-xs text-slate-500">Max times one user can use this code</p>
           </div>
         </div>
+
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" formControlName="active" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
+            <span class="text-sm font-medium text-slate-300">Active</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" formControlName="applicableToAll" class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500 focus:ring-primary-500 focus:ring-offset-dark" />
+            <span class="text-sm font-medium text-slate-300">Apply to All</span>
+          </label>
+        </div>
+
+        @if (promotionForm.get('applicableToAll')?.value === false) {
+          <div>
+            <label class="mb-2 block text-sm font-medium text-slate-300">
+              Applicable Categories
+            </label>
+            <div class="grid grid-cols-2 gap-2 rounded-lg border border-slate-700/50 p-3 max-h-40 overflow-y-auto">
+              @for (category of categories(); track category.id) {
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox"
+                    [checked]="promotionForm.get('categoryIds')?.value?.includes(category.id)"
+                    (change)="onCategoryToggle(category.id, $any($event.target).checked)"
+                    class="h-4 w-4 rounded border-slate-700 bg-slate-900 text-primary-500" />
+                  <span class="text-sm text-slate-300">{{ category.name }}</span>
+                </label>
+              }
+              @if (categories().length === 0) {
+                <p class="col-span-2 text-xs text-slate-500">No categories available</p>
+              }
+            </div>
+          </div>
+        }
 
         <div>
           <label class="mb-1 block text-sm font-medium text-slate-300">Description</label>

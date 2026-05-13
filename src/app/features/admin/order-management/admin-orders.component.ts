@@ -33,20 +33,63 @@ export class AdminOrdersComponent implements OnInit {
   readonly updatingOrderId = signal<string | null>(null);
   readonly updateSuccess = signal<string | null>(null);
 
-  // Pagination
+  // Pagination Signals
   readonly currentPage = signal(0);
   readonly pageSize = signal(10);
   readonly totalOrders = signal(0);
 
-  // Filter
-  readonly statusFilter = signal<OrderStatus | null>(null);
+  // Filter Signals
+  readonly searchQuery = signal('');
+  readonly selectedStatus = signal('ALL');
+  readonly dateFrom = signal('');
+  readonly dateTo = signal('');
 
   readonly filteredOrders = computed(() => {
     let result = this.orders();
-    const filter = this.statusFilter();
-    if (filter) {
-      result = result.filter(o => o.status === filter);
+
+    // 1. Status Filter
+    const status = this.selectedStatus();
+    if (status !== 'ALL') {
+      result = result.filter(o => o.status === status);
     }
+
+    // 2. Search Query Filter
+    const query = this.searchQuery().toLowerCase().trim();
+    if (query) {
+      result = result.filter(order =>
+        order.id?.toLowerCase().startsWith(query) ||
+        order.id?.toLowerCase().includes(query) ||
+        order.userEmail?.toLowerCase().includes(query) ||
+        order.items?.some(i =>
+          i.productName?.toLowerCase().includes(query)
+        )
+      );
+    }
+
+    // 3. Date Range Filter
+    const from = this.dateFrom();
+    const to = this.dateTo();
+    if (from || to) {
+      result = result.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        orderDate.setHours(0, 0, 0, 0);
+
+        if (from) {
+          const fromDate = new Date(from);
+          fromDate.setHours(0, 0, 0, 0);
+          if (orderDate < fromDate) return false;
+        }
+
+        if (to) {
+          const toDate = new Date(to);
+          toDate.setHours(0, 0, 0, 0);
+          if (orderDate > toDate) return false;
+        }
+
+        return true;
+      });
+    }
+
     return result;
   });
 
@@ -57,7 +100,8 @@ export class AdminOrdersComponent implements OnInit {
   });
 
   readonly totalPages = computed(() => {
-    return Math.ceil(this.filteredOrders().length / this.pageSize());
+    const count = this.filteredOrders().length;
+    return Math.max(1, Math.ceil(count / this.pageSize()));
   });
 
   readonly orderStatuses = ORDER_STATUSES;
@@ -104,8 +148,28 @@ export class AdminOrdersComponent implements OnInit {
     });
   }
 
-  onFilterChange(status: OrderStatus | null): void {
-    this.statusFilter.set(status);
+  onFilterChange(status: string): void {
+    this.selectedStatus.set(status as any);
+    this.currentPage.set(0);
+  }
+
+  onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.currentPage.set(0);
+  }
+
+  onDateChange(): void {
+    this.currentPage.set(0);
+  }
+
+  clearDates(): void {
+    this.dateFrom.set('');
+    this.dateTo.set('');
+    this.currentPage.set(0);
+  }
+
+  clearSearch(): void {
+    this.searchQuery.set('');
     this.currentPage.set(0);
   }
 

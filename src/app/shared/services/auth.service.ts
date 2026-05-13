@@ -1,7 +1,7 @@
 import { HttpBackend, HttpClient, HttpHeaders } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, EMPTY, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, finalize, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { TokenService } from '../../core/services/token.service';
@@ -11,6 +11,7 @@ import {
   RegisterRequest,
   UserProfile,
 } from '../models/auth.model';
+import { CartService } from './cart.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -20,12 +21,18 @@ export class AuthService {
   private readonly router = inject(Router);
 
   private readonly currentUser = signal<UserProfile | null>(null);
+  private readonly initialising = signal(true);
+  private readonly authResolved = signal(false);
 
   readonly user = this.currentUser.asReadonly();
+  readonly isInitialising = this.initialising.asReadonly();
+  readonly isAuthResolved = this.authResolved.asReadonly();
   readonly isLoggedIn = computed(() => this.currentUser() !== null);
   readonly isAdmin = computed(
     () => this.currentUser()?.roles.includes('ADMIN') ?? false,
   );
+
+  private readonly cartService = inject(CartService);
 
   login(req: LoginRequest): Observable<void> {
     return this.http
@@ -36,6 +43,7 @@ export class AuthService {
           return this.loadCurrentUser().pipe(catchError(() => of(undefined)));
         }),
         tap(() => {
+          this.cartService.resumePendingAction();
           void this.router.navigate(['/products']);
         }),
       );
@@ -106,17 +114,28 @@ export class AuthService {
   initializeAuth(): Observable<void> {
     const accessToken = this.tokenService.getAccessToken();
 
+    let authObs: Observable<void>;
+
     if (accessToken && !this.tokenService.isAccessTokenExpired()) {
-      return this.loadCurrentUser();
+      authObs = this.loadCurrentUser();
+    } else {
+      const refreshToken = this.tokenService.getRefreshToken();
+      if (refreshToken) {
+        authObs = this.refreshTokens().pipe(
+          switchMap(() => this.loadCurrentUser()),
+          catchError(() => of(undefined)),
+        );
+      } else {
+        authObs = of(undefined);
+      }
     }
 
-    const refreshToken = this.tokenService.getRefreshToken();
-    if (refreshToken) {
-      return this.refreshTokens().pipe(
-        switchMap(() => this.loadCurrentUser()),
-      );
-    }
-
-    return of(undefined);
+    return authObs.pipe(
+      finalize(() => {
+        this.initialising.set(false);
+        this.authResolved.set(true);
+      }),
+      map(() => undefined),
+    );
   }
 }

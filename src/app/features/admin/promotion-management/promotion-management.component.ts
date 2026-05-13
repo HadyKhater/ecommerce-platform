@@ -2,9 +2,11 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DatePipe, NgClass } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PromotionService } from '../../../core/services/promotion.service';
+import { CategoryService } from '../../../shared/services/category.service';
 import { Promotion, PromotionRequest, DiscountType } from '../../../core/models/promotion.model';
 import { catchError, finalize } from 'rxjs/operators';
 import { of } from 'rxjs';
+import { Category } from '../../../shared/models/product.model';
 
 @Component({
   selector: 'app-promotion-management',
@@ -15,9 +17,11 @@ import { of } from 'rxjs';
 })
 export class PromotionManagementComponent {
   private readonly promotionService = inject(PromotionService);
+  private readonly categoryService = inject(CategoryService);
   private readonly fb = inject(FormBuilder);
 
   readonly promotions = signal<Promotion[]>([]);
+  readonly categories = signal<{id: string, name: string}[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
@@ -37,11 +41,14 @@ export class PromotionManagementComponent {
     endDate: ['', Validators.required],
     active: [true],
     usageLimit: [undefined as number | undefined],
-    applicableToAll: [true]
+    perUserLimit: [undefined as number | undefined],
+    applicableToAll: [true],
+    categoryIds: [[] as string[]]
   });
 
   constructor() {
     this.loadPromotions();
+    this.loadCategories();
   }
 
   loadPromotions() {
@@ -57,6 +64,12 @@ export class PromotionManagementComponent {
       const sorted = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       this.promotions.set(sorted);
     });
+  }
+
+  loadCategories() {
+    this.categoryService.getCategories().pipe(
+      catchError(() => of([]))
+    ).subscribe((data: Category[]) => this.categories.set(data));
   }
 
   openAddModal() {
@@ -83,7 +96,9 @@ export class PromotionManagementComponent {
       endDate: promotion.endDate,
       active: promotion.active,
       usageLimit: promotion.usageLimit,
-      applicableToAll: promotion.applicableToAll
+      perUserLimit: promotion.perUserLimit,
+      applicableToAll: promotion.applicableToAll,
+      categoryIds: promotion.categoryIds || []
     });
     this.modalOpen.set(true);
   }
@@ -109,7 +124,9 @@ export class PromotionManagementComponent {
       endDate: formValue.endDate!,
       active: formValue.active ?? true,
       usageLimit: formValue.usageLimit || undefined,
-      applicableToAll: formValue.applicableToAll ?? true
+      perUserLimit: formValue.perUserLimit || undefined,
+      applicableToAll: formValue.applicableToAll ?? true,
+      categoryIds: formValue.applicableToAll ? [] : (formValue.categoryIds || [])
     };
 
     const currentPromotion = this.selectedPromotion();
@@ -129,6 +146,14 @@ export class PromotionManagementComponent {
         this.loadPromotions();
       }
     });
+  }
+
+  onCategoryToggle(categoryId: string, checked: boolean) {
+    const current = this.promotionForm.get('categoryIds')?.value as string[] || [];
+    const updated = checked
+      ? [...current, categoryId]
+      : current.filter(id => id !== categoryId);
+    this.promotionForm.patchValue({ categoryIds: updated });
   }
 
   confirmDelete(id: string) {
