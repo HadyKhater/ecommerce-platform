@@ -1,16 +1,11 @@
 import { HttpBackend, HttpClient, HttpHeaders } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, EMPTY, finalize, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, finalize, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { TokenService } from '../../core/services/token.service';
-import {
-  AuthResponse,
-  LoginRequest,
-  RegisterRequest,
-  UserProfile,
-} from '../models/auth.model';
+import { AuthResponse, LoginRequest, RegisterRequest, UserProfile } from '../models/auth.model';
 import { CartService } from './cart.service';
 
 @Injectable({ providedIn: 'root' })
@@ -28,36 +23,30 @@ export class AuthService {
   readonly isInitialising = this.initialising.asReadonly();
   readonly isAuthResolved = this.authResolved.asReadonly();
   readonly isLoggedIn = computed(() => this.currentUser() !== null);
-  readonly isAdmin = computed(
-    () => this.currentUser()?.roles.includes('ADMIN') ?? false,
-  );
+  readonly isAdmin = computed(() => this.currentUser()?.roles.includes('ADMIN') ?? false);
 
   private readonly cartService = inject(CartService);
 
   login(req: LoginRequest): Observable<void> {
-    return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/auth/login`, req)
-      .pipe(
-        switchMap((response) => {
-          this.tokenService.setTokens(response);
-          return this.loadCurrentUser().pipe(catchError(() => of(undefined)));
-        }),
-        tap(() => {
-          this.cartService.resumePendingAction();
-          void this.router.navigate(['/products']);
-        }),
-      );
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/login`, req).pipe(
+      switchMap((response) => {
+        this.tokenService.setTokens(response);
+        return this.loadCurrentUser().pipe(catchError(() => of(undefined)));
+      }),
+      tap(() => {
+        this.cartService.resumePendingAction();
+        void this.router.navigate(['/products']);
+      }),
+    );
   }
 
   register(req: RegisterRequest): Observable<void> {
-    return this.http
-      .post<unknown>(`${environment.apiUrl}/auth/register`, req)
-      .pipe(
-        map(() => undefined),
-        tap(() => {
-          void this.router.navigate(['/auth/login']);
-        }),
-      );
+    return this.http.post<unknown>(`${environment.apiUrl}/auth/register`, req).pipe(
+      map(() => undefined),
+      tap(() => {
+        void this.router.navigate(['/auth/login']);
+      }),
+    );
   }
 
   logout(): void {
@@ -97,18 +86,16 @@ export class AuthService {
   loadCurrentUser(): Observable<void> {
     const email = this.tokenService.getUserEmailFromToken();
     if (!email) {
-      return EMPTY;
+      return of(undefined);
     }
 
     const headers = new HttpHeaders({ 'X-User-Email': email });
 
-    return this.http
-      .get<UserProfile>(`${environment.apiUrl}/auth/me`, { headers })
-      .pipe(
-        tap((user) => this.currentUser.set(user)),
-        map(() => undefined),
-        catchError(() => EMPTY),
-      );
+    return this.http.get<UserProfile>(`${environment.apiUrl}/auth/me`, { headers }).pipe(
+      tap((user) => this.currentUser.set(user)),
+      map(() => undefined),
+      catchError(() => of(undefined)),
+    );
   }
 
   initializeAuth(): Observable<void> {

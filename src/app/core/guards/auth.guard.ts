@@ -5,9 +5,11 @@ import { toObservable } from '@angular/core/rxjs-interop';
 import { filter, map, take } from 'rxjs';
 
 import { AuthService } from '../../shared/services/auth.service';
+import { TokenService } from '../services/token.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
+  const tokenService = inject(TokenService);
   const router = inject(Router);
   const platformId = inject(PLATFORM_ID);
 
@@ -24,7 +26,16 @@ export const authGuard: CanActivateFn = (route, state) => {
     filter((resolved) => resolved),
     take(1),
     map(() => {
+      // First check: is the user loaded in the service?
       if (authService.isLoggedIn()) {
+        return true;
+      }
+
+      // Second check (fallback): Even if loadCurrentUser() failed (e.g., server down),
+      // if we have a valid non-expired token in localStorage, allow access.
+      // This prevents redirecting to login when the backend is temporarily unavailable.
+      const accessToken = tokenService.getAccessToken();
+      if (accessToken && !tokenService.isAccessTokenExpired()) {
         return true;
       }
 
