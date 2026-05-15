@@ -1,55 +1,99 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { CommonModule, DatePipe, DecimalPipe, SlicePipe } from '@angular/common';
 import { OrderService } from '../../shared/services/order.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { OrderResponse } from '../../shared/models/order.model';
 import { RouterLink } from '@angular/router';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, combineLatest, map, of, shareReplay, startWith, switchMap, tap } from 'rxjs';
+
+export interface OrderHistoryVm {
+  orders: OrderResponse[];
+  loading: boolean;
+  error: string | null;
+}
 
 @Component({
   selector: 'app-order-history',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, DatePipe, DecimalPipe, SlicePipe, RouterLink],
   templateUrl: './order-history.component.html',
   styleUrl: './order-history.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OrderHistoryComponent implements OnInit {
+export class OrderHistoryComponent {
   private readonly orderService = inject(OrderService);
   private readonly authService = inject(AuthService);
 
-  orders = signal<OrderResponse[]>([]);
-  loading = signal<boolean>(true);
-  error = signal<string | null>(null);
-
   // Simple state to track expanded order details
-  expandedOrderId = signal<string | null>(null);
+  readonly expandedOrderId = signal<string | null>(null);
 
-  ngOnInit(): void {
-    this.loadOrders();
-  }
+  // Create observables from auth signals
+  private readonly authResolved$ = toObservable(this.authService.isAuthResolved);
+  private readonly user$ = toObservable(this.authService.user);
 
-  private loadOrders(): void {
-    const user = this.authService.user();
-    if (!user || !user.id) {
-      this.error.set('User not found. Please log in.');
-      this.loading.set(false);
-      return;
-    }
-
-    this.loading.set(true);
-    this.orderService.getUserOrders(user.id).subscribe({
-      next: (data) => {
-        // Sort orders by createdAt descending
-        const sorted = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        this.orders.set(sorted);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set('Failed to load order history.');
-        this.loading.set(false);
+  // Create observable stream that combines auth resolution and order loading
+  private readonly orders$ = combineLatest([
+    this.authResolved$,
+    this.user$,
+  ]).pipe(
+    map(([resolved, user]) => ({ resolved, user })),
+    switchMap(({ resolved, user }) => {
+      // If auth not resolved yet, emit loading state
+      if (!resolved) {
+        return of({
+          orders: [] as OrderResponse[],
+          loading: true,
+          error: null as string | null,
+        } as OrderHistoryVm);
       }
-    });
-  }
+
+      // If user not logged in, show empty state
+      if (!user || !user.id) {
+        return of({
+          orders: [] as OrderResponse[],
+          loading: false,
+          error: null as string | null,
+        } as OrderHistoryVm);
+      }
+
+      // Load orders for authenticated user
+      return this.orderService.getUserOrders(user.id).pipe(
+        tap((orders) => {
+          // Sort orders by createdAt descending
+          orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }),
+        map((orders): OrderHistoryVm => ({
+          orders,
+          loading: false,
+          error: null,
+        })),
+        startWith({
+          orders: [] as OrderResponse[],
+          loading: true,
+          error: null as string | null,
+        } as OrderHistoryVm),
+        catchError((err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to load order history.';
+          return of({
+            orders: [] as OrderResponse[],
+            loading: false,
+            error: message,
+          });
+        }),
+      );
+    }),
+    shareReplay(1),
+  );
+
+  // Convert observable to signal with initial loading state
+  readonly vm = toSignal(this.orders$, {
+    initialValue: {
+      orders: [] as OrderResponse[],
+      loading: true,
+      error: null as string | null,
+    } satisfies OrderHistoryVm,
+  });
 
   toggleOrderDetails(orderId: string): void {
     if (this.expandedOrderId() === orderId) {

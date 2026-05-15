@@ -3,9 +3,9 @@
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-white">
       Order History
-      @if (orders().length > 0 && !loading()) {
+      @if (vm().orders.length > 0 && !vm().loading) {
         <span class="ml-3 inline-flex items-center rounded-full bg-indigo-500/10 px-3 py-1 text-sm font-medium text-indigo-400 ring-1 ring-indigo-500/20">
-          {{ orders().length }} orders
+          {{ vm().orders.length }} orders
         </span>
       }
     </h1>
@@ -13,14 +13,14 @@
   </div>
 
   <!-- Error state -->
-  @if (error()) {
+  @if (vm().error) {
     <div class="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400" role="alert">
-      {{ error() }}
+      {{ vm().error }}
     </div>
   }
 
   <!-- Loading skeleton -->
-  @if (loading()) {
+  @if (vm().loading) {
     <div class="space-y-4">
       @for (i of [1, 2, 3]; track i) {
         <div class="rounded-2xl border border-slate-700 bg-slate-800 p-6 animate-pulse">
@@ -38,7 +38,7 @@
   }
 
   <!-- Empty state -->
-  @if (!loading() && orders().length === 0 && !error()) {
+  @if (!vm().loading && vm().orders.length === 0 && !vm().error) {
     <div class="flex flex-col items-center justify-center py-16 rounded-2xl border border-slate-700 border-dashed bg-slate-800/50">
       <div class="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-slate-800">
         <svg class="h-12 w-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -54,9 +54,9 @@
   }
 
   <!-- Orders List -->
-  @if (!loading() && orders().length > 0) {
+  @if (!vm().loading && vm().orders.length > 0) {
     <div class="space-y-4">
-      @for (order of orders(); track order.id) {
+      @for (order of vm().orders; track order.id) {
         <div class="rounded-2xl border border-slate-700 bg-slate-800 overflow-hidden transition-all duration-200 hover:border-slate-600">
           
           <!-- Order Header (Clickable to expand) -->
