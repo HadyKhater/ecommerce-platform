@@ -20,16 +20,25 @@ export class AppComponent implements OnInit {
 
   /** Whether the current route is an admin route (no public navbar/footer) */
   isAdminRoute = false;
+  
+  /** Whether the current route is an auth page (login/register) — no navbar/footer */
+  isAuthPage = false;
 
   ngOnInit(): void {
-    // Subscribe to router events to detect admin routes
+    // Subscribe to router events to detect admin and auth routes
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe((e) => {
         const navEnd = e as NavigationEnd;
-        this.isAdminRoute = navEnd.urlAfterRedirects.startsWith('/admin');
+        const url = navEnd.urlAfterRedirects;
+        const path = url.split('?')[0]; // Strip query params
+        this.isAdminRoute = path.startsWith('/admin');
+        this.isAuthPage = path === '/login' || path === '/register';
       });
     // Set initial value
-    this.isAdminRoute = this.router.url.startsWith('/admin');
+    const currentUrl = this.router.url;
+    const currentPath = currentUrl.split('?')[0]; // Strip query params
+    this.isAdminRoute = currentPath.startsWith('/admin');
+    this.isAuthPage = currentPath === '/login' || currentPath === '/register';
   }
 }
