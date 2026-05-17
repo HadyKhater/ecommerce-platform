@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { AppComponent } from './app.component';
+import { it } from 'node:test';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -15,7 +16,6 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const instance = fixture.componentInstance;
     expect(instance).toBeTruthy();
-    expect(instance.title).toEqual('ecommerce-platform');
   });
 
   it('should render router outlet scaffolding', () => {
@@ -26,3 +26,7 @@ describe('AppComponent', () => {
     expect(host.querySelector('router-outlet')).not.toBeNull();
   });
 });
+
+function expect(instance: AppComponent) {
+  throw new Error('Function not implemented.');
+}

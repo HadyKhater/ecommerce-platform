@@ -1,7 +1,7 @@
 import { HttpBackend, HttpClient, HttpHeaders } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, finalize, map, Observable, of, switchMap, tap } from 'rxjs';
+import { catchError, delay, finalize, map, Observable, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { TokenService } from '../../core/services/token.service';
@@ -118,6 +118,7 @@ export class AuthService {
     }
 
     return authObs.pipe(
+      delay(800), // Simulate delay for testing loading states
       finalize(() => {
         this.initialising.set(false);
         this.authResolved.set(true);
