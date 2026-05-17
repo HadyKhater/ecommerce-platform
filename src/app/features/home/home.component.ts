@@ -81,7 +81,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   readonly heroProgress = signal(0);
   private heroAutoPlayInterval: ReturnType<typeof setInterval> | null = null;
   private heroProgressInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly heroAutoPlayDuration = 5000;
+  private readonly heroAutoPlayDuration = 3000;
 
   // Stats counter signals
   readonly statProducts = signal(0);
