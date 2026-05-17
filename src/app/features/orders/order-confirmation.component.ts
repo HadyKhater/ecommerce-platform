@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrderService } from '../../shared/services/order.service';
 import { OrderResponse } from '../../shared/models/order.model';
@@ -7,7 +7,7 @@ import { OrderResponse } from '../../shared/models/order.model';
 @Component({
   selector: 'app-order-confirmation',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink,DatePipe],
   templateUrl: './order-confirmation.component.html',
   styleUrl: './order-confirmation.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
