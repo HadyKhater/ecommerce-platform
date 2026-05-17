@@ -6,8 +6,102 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <style>
+    /* Pre-Angular splash screen - shown immediately to prevent content flash */
+    #pre-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #020617;
+      overflow: hidden;
+      transition: opacity 0.5s ease-out;
+    }
+    #pre-splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #pre-splash .logo-text {
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: -0.025em;
+      margin-top: 12px;
+    }
+    #pre-splash .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #pre-splash .loading-bar {
+      width: 200px;
+      max-width: 80vw;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 24px;
+      border: 1px solid rgba(51, 65, 85, 0.5);
+    }
+    #pre-splash .loading-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6, #6366f1);
+      background-size: 200% 100%;
+      animation: loading-bar 2.5s ease-in-out infinite, shimmer 2s linear infinite;
+      border-radius: 9999px;
+    }
+    @keyframes loading-bar {
+      0% { width: 0%; }
+      50% { width: 60%; }
+      75% { width: 75%; }
+      100% { width: 85%; }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    #pre-splash .status-text {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-top: 16px;
+      font-weight: 500;
+      letter-spacing: 0.025em;
+    }
+  </style>
 </head>
 <body>
+  <!-- Pre-Angular splash screen -->
+  <div id="pre-splash">
+    <div class="spinner"></div>
+    <span class="logo-text">NTGStore</span>
+    <div class="loading-bar">
+      <div class="loading-bar-fill"></div>
+    </div>
+    <p class="status-text">Loading...</p>
+  </div>
+
   <app-root></app-root>
+  <script>
+    // Fallback: Hide pre-splash after 10 seconds if Angular doesn't hide it
+    // (Angular will hide it when authService.isInitialising() becomes false)
+    setTimeout(function() {
+      var preSplash = document.getElementById('pre-splash');
+      if (preSplash) {
+        preSplash.classList.add('hidden');
+        setTimeout(function() {
+          preSplash.remove();
+        }, 500);
+      }
+    }, 10000);
+  </script>
 </body>
 </html>

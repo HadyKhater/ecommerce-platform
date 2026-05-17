@@ -1,7 +1,7 @@
-import { Component, inject, OnInit, signal, computed, effect, PLATFORM_ID } from '@angular/core';
+import { Component, inject, OnInit, effect, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, NgClass } from '@angular/common';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { filter, delay, take } from 'rxjs';
+import { filter } from 'rxjs';
 
 import { NavbarComponent } from './shared/components/navbar/navbar.component';
 import { FooterComponent } from './shared/components/footer/footer.component';
@@ -25,28 +25,21 @@ export class AppComponent implements OnInit {
   /** Whether the current route is an auth page (login/register) — no navbar/footer */
   isAuthPage = false;
 
-  /** Track if the splash screen has been hidden - prevents showing again after first hide */
-  private readonly splashHidden = signal(false);
-
-  /** 
-   * Combined condition for showing splash screen:
-   * - Show while auth is initializing OR
-   * - Show until explicitly hidden after first navigation completes
-   */
-  readonly showSplash = computed(() => 
-    (this.authService.isInitialising() || !this.splashHidden()) && !this.splashHidden()
-  );
-
   constructor() {
-    // Effect to toggle body class for scroll lock during splash
+    // Effect to hide CSS splash when auth initialization completes
     // Must be in constructor (injection context) not ngOnInit
     effect(() => {
       if (isPlatformBrowser(this.platformId)) {
-        const splashActive = this.showSplash();
-        if (splashActive) {
-          document.body.classList.add('splash-active');
-        } else {
-          document.body.classList.remove('splash-active');
+        const isInitialising = this.authService.isInitialising();
+        if (!isInitialising) {
+          // Hide the CSS splash screen
+          const preSplash = document.getElementById('pre-splash');
+          if (preSplash) {
+            preSplash.classList.add('hidden');
+            setTimeout(() => {
+              preSplash.remove();
+            }, 500);
+          }
         }
       }
     });
@@ -66,17 +59,6 @@ export class AppComponent implements OnInit {
         this.isAuthPage = path === '/login' || path === '/register';
       });
 
-    // 2. Hide splash after FIRST navigation completes
-    this.router.events
-      .pipe(
-        filter((e) => e instanceof NavigationEnd),
-        take(1), // Only handle the first navigation
-        delay(300) // Small delay to ensure splash is visible and rendered
-      )
-      .subscribe(() => {
-        this.splashHidden.set(true);
-      });
-    
     // Set initial route detection values
     const currentUrl = this.router.url;
     const currentPath = currentUrl.split('?')[0]; // Strip query params
