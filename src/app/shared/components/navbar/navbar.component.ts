@@ -12,11 +12,12 @@ import { NgClass } from '@angular/common';
 
 import { AuthService } from '../../../shared/services/auth.service';
 import { CartService } from '../../../shared/services/cart.service';
+import { NotificationsComponent } from '../notifications/notifications.component';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, NgClass],
+  imports: [RouterLink, RouterLinkActive, NgClass, NotificationsComponent],
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

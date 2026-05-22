@@ -182,7 +182,7 @@ export class CategoryManagementComponent {
       if (this.deleteSuccess()) {
         setTimeout(() => this.deleteSuccess.set(false), 3000);
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   /**

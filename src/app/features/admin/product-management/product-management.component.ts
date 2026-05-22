@@ -264,7 +264,7 @@ export class ProductManagementComponent {
       if (this.deleteSuccess()) {
         setTimeout(() => this.deleteSuccess.set(false), 3000);
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   // FIX: Manual load method - triggers reload via refresh trigger
