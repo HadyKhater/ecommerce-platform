@@ -14,7 +14,7 @@ import { catchError, finalize, of } from 'rxjs';
 import { OrderService } from '../../../shared/services/order.service';
 import { OrderResponse, OrderStatus } from '../../../shared/models/order.model';
 
-const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED'];
+const ORDER_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED', 'RESERVED', 'EXPIRED'];
 
 @Component({
   selector: 'app-admin-orders',

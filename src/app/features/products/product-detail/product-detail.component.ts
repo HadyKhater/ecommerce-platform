@@ -95,7 +95,9 @@ export class ProductDetailComponent implements OnInit {
       const id = params.get('id');
       if (id) {
         this.loadProduct(id);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof window !== 'undefined') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
       }
     });
   }
@@ -320,12 +322,14 @@ export class ProductDetailComponent implements OnInit {
     if (!product || this.addingToCart() || this.isOutOfStock()) return;
 
     if (!this.authService.isLoggedIn()) {
-      sessionStorage.setItem('pending_action', JSON.stringify({
-        type: 'ADD_TO_CART',
-        productId: product.id,
-        quantity: this.quantity(),
-        productName: product.name
-      }));
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pending_action', JSON.stringify({
+          type: 'ADD_TO_CART',
+          productId: product.id,
+          quantity: this.quantity(),
+          productName: product.name
+        }));
+      }
       this.router.navigate(['/login'], {
         queryParams: { returnUrl: this.router.url },
       });

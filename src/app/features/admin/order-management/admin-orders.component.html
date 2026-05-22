@@ -169,6 +169,17 @@
                   <td class="px-6 py-4 text-right">
                     @if (updatingOrderId() === order.id) {
                       <span class="text-xs text-slate-500">Updating...</span>
+                    } @else if (order.status === 'RESERVED') {
+                      <button
+                        (click)="onStatusChange(order.id, 'CANCELLED')"
+                        class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    } @else if (order.status === 'EXPIRED') {
+                      <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset bg-slate-500/10 text-slate-500 ring-slate-500/20">
+                        No Actions
+                      </span>
                     } @else {
                       <select 
                         [ngModel]="order.status" 

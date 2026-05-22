@@ -112,6 +112,38 @@ export const routes: Routes = [
 
   {
 
+    path: 'payment/success',
+
+    loadComponent: () =>
+
+      import('./features/payment/payment-success/payment-success.component').then(
+
+        (m) => m.PaymentSuccessComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
+    path: 'payment/cancel',
+
+    loadComponent: () =>
+
+      import('./features/payment/payment-cancel/payment-cancel.component').then(
+
+        (m) => m.PaymentCancelComponent,
+
+      ),
+
+    canActivate: [authGuard],
+
+  },
+
+  {
+
     path: 'order-confirmation',
 
     loadComponent: () =>

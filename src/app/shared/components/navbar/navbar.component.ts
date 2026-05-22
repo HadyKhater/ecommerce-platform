@@ -54,7 +54,9 @@ export class NavbarComponent implements OnInit {
 
   @HostListener('window:scroll')
   onWindowScroll(): void {
-    this.scrolled.set(window.scrollY > 10);
+    if (typeof window !== 'undefined') {
+      this.scrolled.set(window.scrollY > 10);
+    }
   }
 
   toggleMobileMenu(): void {

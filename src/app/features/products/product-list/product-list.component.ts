@@ -262,12 +262,14 @@ export class ProductListComponent implements OnInit {
     if (available <= 0) return;
 
     if (!this.authService.isLoggedIn()) {
-      sessionStorage.setItem('pending_action', JSON.stringify({
-        type: 'ADD_TO_CART',
-        productId: product.id,
-        quantity: 1,
-        productName: product.name
-      }));
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pending_action', JSON.stringify({
+          type: 'ADD_TO_CART',
+          productId: product.id,
+          quantity: 1,
+          productName: product.name
+        }));
+      }
       this.router.navigate(['/login'], {
         queryParams: { returnUrl: this.router.url },
       });

@@ -21,7 +21,7 @@ export interface OrderItemResponse {
   totalPrice: number;
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED' | 'RESERVED' | 'EXPIRED';
 
 export interface OrderResponse {
   id: string;
