@@ -1,5 +1,4 @@
-import { Injectable, signal, computed, effect, inject, PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { Injectable, signal, computed } from '@angular/core';
 
 export interface DiscountInfo {
   code: string;
@@ -14,9 +13,6 @@ export interface DiscountInfo {
   providedIn: 'root'
 })
 export class DiscountService {
-  private readonly platformId = inject(PLATFORM_ID);
-  private readonly STORAGE_KEY = 'applied_discount';
-
   // Private signal for discount info
   private readonly _discountInfo = signal<DiscountInfo | null>(null);
 
@@ -27,10 +23,7 @@ export class DiscountService {
   readonly discountCode = computed(() => this._discountInfo()?.code ?? null);
 
   constructor() {
-    // Load from localStorage on init (browser only)
-    if (isPlatformBrowser(this.platformId)) {
-      this.loadFromStorage();
-    }
+    // Discount is now in-memory only, cleared on page refresh
   }
 
   /**
@@ -42,7 +35,6 @@ export class DiscountService {
       appliedAt: new Date().toISOString()
     };
     this._discountInfo.set(discountWithTimestamp);
-    this.saveToStorage();
   }
 
   /**
@@ -50,7 +42,6 @@ export class DiscountService {
    */
   clearDiscount(): void {
     this._discountInfo.set(null);
-    this.clearStorage();
   }
 
   /**
@@ -97,43 +88,4 @@ export class DiscountService {
     return true;
   }
 
-  private loadFromStorage(): void {
-    try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as DiscountInfo;
-        // Validate the stored discount is not too old (e.g., older than 1 hour)
-        const appliedAt = new Date(parsed.appliedAt);
-        const now = new Date();
-        const hoursDiff = (now.getTime() - appliedAt.getTime()) / (1000 * 60 * 60);
-
-        if (hoursDiff < 1) {
-          this._discountInfo.set(parsed);
-        } else {
-          this.clearStorage();
-        }
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
-  private saveToStorage(): void {
-    try {
-      const info = this._discountInfo();
-      if (info) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(info));
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
-  private clearStorage(): void {
-    try {
-      localStorage.removeItem(this.STORAGE_KEY);
-    } catch {
-      // Ignore storage errors
-    }
-  }
 }
