@@ -1,0 +1,3 @@
+# Default SPA fallback. Regenerated with the real backend URL at build time
+# by scripts/generate-config.mjs (BACKEND_URL env var in Cloudflare Pages).
+/*  /index.html  200

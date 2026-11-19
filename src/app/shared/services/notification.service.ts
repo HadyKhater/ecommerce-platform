@@ -74,7 +74,7 @@ export class NotificationService {
     this.connecting = true;
 
     try {
-      const socket = new SockJS('http://localhost:8086/ws');
+      const socket = new SockJS(environment.wsUrl);
 
       this.stompClient = new Client({
         webSocketFactory: () => socket,

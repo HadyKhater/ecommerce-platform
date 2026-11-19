@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:static": "node scripts/generate-config.mjs && ng build --configuration production --prerender=false --ssr=false",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:ecommerce-platform": "node dist/ecommerce-platform/server/server.mjs"
